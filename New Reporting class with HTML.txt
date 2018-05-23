@@ -1,0 +1,219 @@
+Public intContext
+ExecuteGlobal "Dim oNativeReporter"
+Set oNativeReporter = Reporter 
+Execute "Dim Reporter"
+
+Set Reporter = ReporterInstance
+'	Disable reporting
+oNativeReporter.Filter = 3
+
+' --------------------------------------------------------------------------------------------------------------------------------------------
+'	The reporter class
+' --------------------------------------------------------------------------------------------------------------------------------------------
+Class clsReporter
+
+	' --------------------------------------------------------------------------------------------------------------------------------------------
+	'	Initialise the class
+	' --------------------------------------------------------------------------------------------------------------------------------------------
+	Private Sub Class_Initialize
+    Dim blnAlreadyInit
+
+		On Error Resume Next    
+		blnAlreadyInit = IsObject(Environment("Dictionary"))
+		If Err.Number <> 0 Then blnAlreadyInit = False 
+		On Error Goto 0
+		If blnAlreadyInit = True Then    
+			If Environment("Dictionary") Is Nothing Then 
+				blnAlreadyInit = False
+			End If
+		End If
+		If blnAlreadyInit = False Then   
+			Environment("Dictionary") = CreateObject("Scripting.Dictionary")
+			Environment("Dictionary")("DllIconIndex") = 206
+			Environment("Dictionary")("DllIconSelIndex") = 206
+			Environment("Dictionary")("DllPAth") = "C:\Program Files\HP\QuickTest Professional\bin\ContextManager.dll"
+		End If
+	
+	End Sub
+	' --------------------------------------------------------------------------------------------------------------------------------------------
+	'	Report an event
+	' --------------------------------------------------------------------------------------------------------------------------------------------
+	Public Sub ReportEvent (iStatus, strStepName, strDetails)
+	Dim strHTML
+	Dim arrSplit
+
+		'	Enable reporting
+		oNativeReporter.Filter = 0
+	
+		arrSplit = Split(strDetails, ",")
+		Environment("Dictionary")("Status") = iStatus
+		Environment("Dictionary")("NodeName") = strStepName
+		strHTML = "<TABLE ALIGN='Center' BORDER='1' WIDTH=100% CELLPADDING='1' >"
+		strHTML = strHTML & "<TR BGcolor='#aeaeff'>"
+		strHTML = strHTML & "<TH width=50% rowspan='1' align='left' valign='top'><font color=black face='Arial'><small><B>" & arrSplit(0) & "</a></B></small></font></TH></TR><BR>"
+		strHTML = strHTML & "<TABLE ALIGN='Center' BORDER='1' WIDTH=100% CELLPADDING='1' ><TR bgcolor='#FFFFCC'>"
+		strHTML = strHTML & "<TH width=33% colspan='1'><font color=black face='Arial'><small>Expected Value</small></font></TH>"
+		strHTML = strHTML & "<TH width=33% colspan='1'><font color=black face='Arial'><small>Actual Value</small></font></TH></TR>"
+		
+		If UBound(arrSplit) = 0 Then
+			Environment("Dictionary")("Status") = iStatus
+			Environment("Dictionary")("NodeName") = strStepName
+			Select Case iStatus
+				Case 0
+					Environment("Dictionary")("StepHtmlInfo") = "<DIV align=left><font color=green face='Arial'>" & strDetails & "</font></DIV>"
+				Case 1
+					Environment("Dictionary")("StepHtmlInfo") = "<DIV align=left><font color=red face='Arial'>" & strDetails & "</font></DIV>"
+				Case 2
+					Environment("Dictionary")("StepHtmlInfo") = "<DIV align=left><font color=black face='Arial'>" & strDetails & "</font></DIV>"
+				Case 3
+					Environment("Dictionary")("StepHtmlInfo") = "<DIV align=left><font color=blue face='Arial'>" & strDetails & "</font></DIV>"
+			End Select
+			oNativeReporter.LogEvent "User", Environment("Dictionary"), oNativeReporter.GetContext
+			oNativeReporter.SetContext intContext
+		Else
+			Select Case iStatus
+				Case 0
+					strHTML = strHTML & "<TR ALIGN='Center' bgcolor='#FFFFCC'><TD><font color=green face='Arial'><small>" & arrSplit(1) & "</small></font></TD><TD><font color=green face='Arial'><small>" & arrSplit(2) & "</small></font></TD></TR>"
+					strHTML = strHTML & "</TABLE>"
+					Environment("Dictionary")("StepHtmlInfo") = strHTML
+					oNativeReporter.SetContext intContext
+					oNativeReporter.LogEvent "User", Environment("Dictionary"), oNativeReporter.GetContext
+				Case 1 
+					strHTML = strHTML & "<TR ALIGN='Center' bgcolor='#FFFFCC'><TD><font color=green face='Arial'><small>" & arrSplit(1) & "</small></font></TD><TD><font color=red face='Arial'><small>" & arrSplit(2) & "</small></font></TD></TR>"
+					strHTML = strHTML & "</TABLE>"
+					Environment("Dictionary")("StepHtmlInfo") = strHTML
+					oNativeReporter.SetContext intContext
+					oNativeReporter.LogEvent "User", Environment("Dictionary"), oNativeReporter.GetContext
+					clsCaptureAndAttachDesktop strStepName, strDetails	
+				Case 2
+					strHTML = strHTML & "<TR ALIGN='Center' bgcolor='#FFFFCC'><TD><font color=green face='Arial'><small>" & arrSplit(1) & "</small></font></TD><TD><font color=green face='Arial'><small>" & arrSplit(2) & "</small></font></TD></TR>"
+					strHTML = strHTML & "</TABLE>"
+					Environment("Dictionary")("StepHtmlInfo") = strHTML
+					oNativeReporter.SetContext intContext
+					oNativeReporter.LogEvent "User", Environment("Dictionary"), oNativeReporter.GetContext
+				Case 3
+					strHTML = strHTML & "<TR ALIGN='Center' bgcolor='#FFFFCC'><TD><font color=green face='Arial'><small>" & arrSplit(1) & "</small></font></TD><TD><font color=blue face='Arial'><small>" & arrSplit(2) & "</small></font></TD></TR>"
+					strHTML = strHTML & "</TABLE>"
+					Environment("Dictionary")("StepHtmlInfo") = strHTML
+					oNativeReporter.SetContext intContext
+					oNativeReporter.LogEvent "User", Environment("Dictionary"), oNativeReporter.GetContext
+			End Select
+		End If
+
+		'	Disable reporting
+		oNativeReporter.Filter = 3
+	End Sub
+	' --------------------------------------------------------------------------------------------------------------------------------------------
+	'	Start Reporting node
+	' --------------------------------------------------------------------------------------------------------------------------------------------
+	Public Sub StartReporting(strStepName, strDetails)
+	   '	Enable reporting
+		oNativeReporter.Filter = 0
+		Environment("Dictionary")("Status") = 2
+		Environment("Dictionary")("NodeName") = strStepName
+		Environment("Dictionary")("StepHtmlInfo") = "<DIV align=left><font color=blue face>" & strDetails & "</font></DIV>"
+		intContext = oNativeReporter.LogEvent ("User", Environment("Dictionary"), oNativeReporter.GetContext)
+		oNativeReporter.SetContext intContext
+		'	Disable reporting
+		oNativeReporter.Filter = 3
+	End Sub
+	' --------------------------------------------------------------------------------------------------------------------------------------------
+	'	End Reporting node
+	' --------------------------------------------------------------------------------------------------------------------------------------------
+	Public Sub EndReporting(strStepName, strDetails)
+	   '	Enable reporting
+		oNativeReporter.Filter = 0
+		Set objDict = CreateObject("Scripting.Dictionary")
+		Environment("Dictionary")("Status") = 2
+		Environment("Dictionary")("NodeName") = strStepName
+		Environment("Dictionary")("StepHtmlInfo") = "<DIV align=left><font color=blue face>" & strDetails & "</font></DIV>"
+		oNativeReporter.SetContext 7
+		intContext = oNativeReporter.LogEvent ("User", Environment("Dictionary"), oNativeReporter.GetContext)
+		'	Disable reporting
+		oNativeReporter.Filter = 3
+	End Sub
+	' --------------------------------------------------------------------------------------------------------------------------------------------
+	'	Report a failure and capture screenshot
+	' --------------------------------------------------------------------------------------------------------------------------------------------
+	Private Sub clsCaptureAndAttachDesktop(strImageName, strDescription)
+	   '	Enable reporting
+		oNativeReporter.Filter = 0
+		Environment("Dictionary")("Status") = 1
+		Environment("Dictionary")("NodeName") = strImageName
+
+		On Error Resume Next
+
+		'	Remove invalid chars
+		strImageName = Replace(strImageName, "\", "")
+		strImageName = Replace(strImageName, "/", "")
+		strImageName = Replace(strImageName, "*", "")
+		strImageName = Replace(strImageName, "?", "")
+		strImageName = Replace(strImageName, """", "")
+		strImageName = Replace(strImageName, "<", "")
+		strImageName = Replace(strImageName, ">", "")
+		strImageName = Replace(strImageName, "|", "")
+
+		'	Capture the screenshot to the report folder
+		Desktop.CaptureBitmap oNativeReporter.ReportPath & "\Report\" & strImageName & ".png", True
+		Environment("Dictionary")("StepHtmlInfo") = "<DIV align=left><img src=" & chr(34) & oNativeReporter.ReportPath & "\Report\" & strImageName & ".png" & chr(34) & "/></DIV>"
+		oNativeReporter.SetContext intContext
+		oNativeReporter.LogEvent "User", Environment("Dictionary"), oNativeReporter.GetContext
+
+		'	QC is not connected
+		If QCUtil.IsConnected = False Then Exit Sub
+ 
+		'	The test is not running from Test Lab
+		If QcUtil.CurrentRun Is Nothing Then Exit Sub
+
+		Set oStepsList = QCUtil.CurrentRun.StepFactory.NewList("")
+		iStepCount = oStepsList.Count
+		Set ObjCurrentTest = QCUtil.CurrentRun.StepFactory.NewList("").Item(iStepCount) 
+
+		'Add the capture to QC
+		Set oAttachments = ObjCurrentTest.Attachments
+		Set oAttachment = oAttachments.AddItem(Null)
+		oAttachment.FileName = oNativeReporter.ReportPath & "\Report\" & strImageName & ".png" 
+		oAttachment.Type = 1 
+ 
+		oAttachment.Description = strDescription	
+ 
+		'Add the attachment
+		oAttachment.Post
+
+		'	Disable reporting
+		oNativeReporter.Filter = 3
+	End Sub
+
+End Class
+Public Function ReporterInstance()
+   Set ReporterInstance = New clsReporter
+End Function
+
+On Error Resume Next
+Reporter.StartReporting "Login", "Start the login process"
+Browser("Welcome to GCOS SIT 4").Page("Welcome to GCOS SIT 4").WebEdit("UserIdentifier").Set "43626036"
+Reporter.ReportEvent micPass, "Enter User Id", "Enter user id, 43626036, 43626036"
+Browser("Welcome to GCOS SIT 4").Page("Welcome to GCOS SIT 4").WebEdit("Password").Set "rules"
+Reporter.ReportEvent micPass, "Enter Password", "Enter Password, rules, boo"
+Browser("Welcome to GCOS SIT 4").Page("Welcome to GCOS SIT 4").WebElement("Log In").Click
+Reporter.ReportEvent micPass, "Login Success", "Process Work Displayed"
+Reporter.EndReporting "End Login", "Here we end the login process"
+Reporter.StartReporting "Search", "Start the [Search] process"
+Browser("Process Work").Page("Process Work").Frame("leftFrame").WebButton("New EM Request").Click
+Reporter.ReportEvent micPass, "Button Click", "[New EM Request] button clicked, Search Entity Displayed, Passed"
+Browser("Process Work").Page("Process Work").Frame("RoomPane").WebList("$PpyWorkPage$pEntityClassifica").Select "Individual"
+Reporter.ReportEvent micPass, "Select From List", "[Entity Category] - selected [Individual]"
+Browser("Process Work").Page("Process Work").Frame("RoomPane").WebList("$PpyWorkPage$pEntitySubClassif").Select "Fund"
+If Err.Number <> 0 Then
+	Reporter.ReportEvent micFail, "Select From List", "[Entity Sub Category], Fund, Object Does Not Exist"
+End If
+
+
+
+
+
+
+
+
+
+

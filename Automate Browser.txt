@@ -1,0 +1,513 @@
+Option Explicit
+
+Public Function DownloadFromPortal()
+Dim IEDoc
+Dim objCollection
+Dim objFrame
+Dim objFrameDocument
+Dim objForm
+
+    ' Create IE and navigate to Murex portal site login
+    'Set IE = New InternetExplorer
+    Set IE = CreateObject("InternetExplorer.Application")
+    IE.Visible = True
+    IE.Navigate "https://www.murex.com/psp/mxsupport/CUSTOMER/CRM/?cmd=logout"
+    'IE.Navigate "http://www.google.co.uk"
+
+    ' Wait for window
+    Do While IE.Busy = True
+    Loop
+    Do Until IE.ReadyState = READYSTATE_COMPLETE
+    Loop
+    
+    '   Set the main document object
+    Set IEDoc = IE.Document
+    
+    ' Enter user id and password
+    EnterText IEDoc, "userid", "MBARTRAM"
+    EnterText IEDoc, "pwd", "Saffron1"
+
+    '   Click on Sign in button
+    ButtonClick IEDoc, "Submit", "Customer-facing registry content"
+    
+    '   Click on Link
+    LinkClick IEDoc, "Manage Cases", , "Manage Cases"
+
+    ' Set up report criteria
+    LinkClick IEDoc, "Advanced Search", , , "TargetContent"
+    EnterText IEDoc, "RC_CASE_SRCH_MX_CREATION_DATE_FROM", "01/05/2010", "TargetContent"
+    EnterText IEDoc, "RC_CASE_SRCH_MX_CREATION_DATE_TO", TodaysDate, "TargetContent"
+    
+    ButtonClick IEDoc, "RC_CASE_SRCH_MX_SEARCH_BUTTON", "", "TargetContent", True
+    LinkClick IEDoc, "Show all columns", "Y", , "TargetContent"
+    LinkClick IEDoc, "Download", "Y", "File Download", "TargetContent"
+    
+    '   Wait for the dialog window to display
+    Sleep 5000
+    LookForWindow
+    Sleep 5000
+    '   Sign out
+    LinkClick IEDoc, "Sign out", , , "UniversalHeader"
+    
+    '   Close browser
+    IE.Quit
+    Set IE = Nothing
+    
+End Function
+
+Public Function EnterText(ByRef objDoc, ByVal strName As String, ByVal strValue As String, Optional strFrameName As String) As Boolean
+Dim Element As Variant
+Dim objFrame
+Dim objFrameDocument
+
+    EnterText = False
+    If strFrameName <> "" Then
+        Set objFrame = objDoc.all.namedItem(strFrameName)
+        Set objFrameDocument = objFrame.ContentWindow.Document
+        Set Element = objFrameDocument.getElementsByName(strName)
+    Else
+        Set Element = objDoc.getElementsByName(strName)
+    End If
+    
+    If Not Element Is Nothing Then
+        Element(0).Value = strValue
+        EnterText = True
+    End If
+    
+    Set objFrame = Nothing
+    Set objFrameDocument = Nothing
+    Set Element = Nothing
+    
+End Function
+Public Function ButtonClick(ByRef objDoc, ByVal strName As String, Optional strTitle As String, Optional strFrameName As String, Optional blnEventClick As Boolean) As Boolean
+Dim Element As Variant
+Dim objFrame
+Dim objFrameDocument
+
+    If strFrameName <> "" Then
+        Set objFrame = objDoc.all.namedItem(strFrameName)
+        Set objFrameDocument = objFrame.ContentWindow.Document
+        Set Element = objFrameDocument.getElementsByName(strName)
+    Else
+        Set Element = objDoc.getElementsByName(strName)
+    End If
+    
+    If Not Element Is Nothing Then
+        If blnEventClick = True Then
+            Element(0).onClick
+        Else
+            Element(0).Click
+        End If
+    End If
+
+    ' Wait for windows
+    Do While IE.Busy = True
+    Loop
+    Do Until IE.ReadyState = READYSTATE_COMPLETE
+    Loop
+
+    If strTitle <> "" Then
+        If objDoc.Title = strTitle Then
+            ButtonClick = True
+        Else
+            ButtonClick = False
+        End If
+    End If
+    
+    Set Element = Nothing
+    Set objFrame = Nothing
+    Set objFrameDocument = Nothing
+        
+End Function
+Public Function LinkClick(ByRef objDoc, ByVal strName As String, Optional strImage As String, Optional strTitle As String, Optional strFrameName As String) As Boolean
+Dim objCollection
+Dim objFrame
+Dim objFrameDocument
+    
+    If strFrameName <> "" Then
+        Set objFrame = objDoc.all.namedItem(strFrameName)
+        Set objFrameDocument = objFrame.ContentWindow.Document
+        If strImage <> "" Then
+            Set objCollection = objFrameDocument.getElementsByTagName("IMG")
+        Else
+            Set objCollection = objFrameDocument.getElementsByTagName("A")
+        End If
+    Else
+        If strImage <> "" Then
+            Set objCollection = objDoc.getElementsByTagName("IMG")
+        Else
+            Set objCollection = objDoc.getElementsByTagName("A")
+        End If
+    End If
+    
+    For i = 0 To objCollection.Length - 1
+        If strImage <> "" Then
+            If InStr(1, objCollection.Item(i).alt, strName) Then
+                objCollection.Item(i).Click
+                Exit For
+            End If
+        Else
+            If InStr(1, objCollection.Item(i).innerText, strName) Then
+                objCollection.Item(i).Click
+                Exit For
+            End If
+        End If
+    Next
+    ' Wait for windows
+    Do While IE.Busy = True
+    Loop
+    Do Until IE.ReadyState = READYSTATE_COMPLETE
+    Loop
+    Set objCollection = Nothing
+    
+    If strTitle <> "" Then
+        If objDoc.Title = strTitle Then
+            LinkClick = True
+        Else
+            LinkClick = False
+        End If
+    End If
+    
+    Set objFrame = Nothing
+    Set objFrameDocument = Nothing
+    Set objCollection = Nothing
+End Function
+Public Function DropDownListSelect(ByRef objDoc, ByVal strName, ByVal strValue As String, Optional strFrameName As String, Optional strFireOnChange As Boolean) As Boolean
+Dim objFrame
+Dim objFrameDocument
+Dim objForms
+Dim objElement
+
+On Error GoTo ErrorHandler
+
+    If strFrameName <> "" Then
+        Set objFrame = objDoc.all.namedItem(strFrameName)
+        Set objFrameDocument = objFrame.ContentWindow.Document
+        Set objForms = objFrameDocument.forms(0)
+    Else
+        Set objForms = objDoc.forms(0)
+    End If
+    
+    ' Find the value and select it
+    Set objSelectOne = objForms.elements(strName)
+    For i = 1 To objSelectOne.Options.Length
+        If objSelectOne.Options(i).Text = strValue Then
+            Set objElement = objFrameDocument.getElementsByName(strName)
+            objElement(0).selectedIndex = i
+            If strFireOnChange = True Then
+                objElement(0).onchange
+            End If
+            Exit For
+        End If
+    Next
+    
+    Do While IE.Busy = True
+    Loop
+    Do Until IE.ReadyState = READYSTATE_COMPLETE
+    Loop
+    
+    Set objFrame = Nothing
+    Set objFrameDocument = Nothing
+    Set objForms = Nothing
+    
+ErrorHandler:
+    rc = Err.Description
+End Function
+
+Public Sub LookForWindow()
+Dim hwnd As Long, lngRet As Long
+
+'look for the File Download window
+Do While hwnd = 0
+    hwnd = FindWindow("#32770", "File Download")
+Loop
+
+'having a few problems with paint delays
+Sleep 500
+
+'now look for the button with &Save as a title
+EnumChildWindows hwnd, AddressOf EnumChildProc, ByVal 0&
+
+'reset hwnd
+hwnd = 0
+
+Sleep 500
+
+'send a click message to the button
+lngRet = SendMessage(hwndBtn, BM_CLICK, 0&, 0&)
+
+hwndBtn = 0
+
+'wait for the Save As window
+Do While hwnd = 0
+    hwnd = FindWindow("#32770", "Save As")
+    Sleep 500
+Loop
+
+Sleep 500
+
+'now look for the button with &Save as a title
+EnumChildWindows hwnd, AddressOf EnumChildProc, ByVal 0&
+
+'send a click message to the button
+lngRet = SendMessage(hwndBtn, BM_CLICK, 0&, 0&)
+
+End Sub
+Public Function EnumChildProc(ByVal hwnd As Long, ByVal lParam As Long) As Long
+    Dim strSave As String
+    'We need to get the length of the text in the window
+    strSave = Space$(GetWindowTextLength(hwnd) + 1)
+    'get the window text
+    GetWindowText hwnd, strSave, Len(strSave)
+    'ditch the last character
+    strSave = Left$(strSave, Len(strSave) - 1)
+    'as both our buttons have text of Save, we can get out here
+    If Left(strSave, 5) = "&Save" Then
+        hwndBtn = hwnd
+        Exit Function
+    End If
+    EnumChildProc = 1
+End Function
+
+
+
+
+'DropDownListSelect IEDoc, "RUN_RC_QUERY_MX_FILTER_TYPE_MX", "Created Since :", "TargetContent", True
+'EnterText IEDoc, "RUN_RC_QUERY_MX_LAST_UPDATE_DATE", "01/05/2010", "TargetContent"
+'DropDownListSelect IEDoc, "RUN_RC_QUERY_MX_RC_STATUS", "Open-Assigned", "TargetContent", False
+'DropDownListSelect IEDoc, "RUN_RC_QUERY_MX_PROVIDER_GRP_ID", "LCH-SWAPCLEAR-FO-SUPPORT", "TargetContent", False
+'DropDownListSelect IEDoc, "RUN_RC_QUERY_MX_ORDBY_1ST_MX", "Case ID", "TargetContent", False
+ 
+'   Click on the 'Run Report' button
+'ButtonClick IEDoc, "RUN_REPORT_MX_RUN_QUERY", "", "TargetContent", True
+
+Public Sub Class_Initialize()
+Set brs = New InternetExplorer
+brs.Visible = brsVisible
+End Sub
+
+Public Sub Class_Terminate()
+Set brs = Nothing
+End Sub
+
+Property Get URL() As String
+URL = brs.LocationURL
+End Property
+
+Sub LoadPage()
+    ' Pauses execution until the browser window has finished loading
+    Do While brs.Busy Or brs.ReadyState <> READYSTATE_COMPLETE
+        If optActiveX Then ' close any activex popup notifications
+            PostMessage FindWindow("#32770", "Microsoft Internet Explorer"), &H10, 0&, 0&
+        End If
+        DoEvents
+    Loop
+End Sub
+
+Sub LoadPageAndClick(cmb As String)
+' Pauses execution until the browser window has finished loading, clicking prompt button cmb
+Dim cmbIndex As Long
+
+    Do While brs.Busy Or brs.ReadyState <> READYSTATE_COMPLETE
+        cmbIndex = FindWindow("#32770", "Microsoft Internet Explorer")
+        If Not cmbIndex = 0 Then
+            SendMessage FindWindowEx(cmbIndex, 0, "Button", "&Retry"), &HF5, 0, 0 ' button click
+        End If
+    DoEvents
+    Loop
+    
+End Sub
+
+Public Sub Navigate(loc As String)
+    ' Navigate to loc
+    Call brs.Navigate(loc)
+    Call LoadPage
+End Sub
+
+Public Sub Refresh(Optional cmb As String)
+    ' Refresh current page
+    Call brs.Refresh
+    If cmb = "" Then
+        Call LoadPage
+    Else
+        Call LoadPageAndClick(cmb)
+    End If
+End Sub
+
+Public Sub Back()
+    ' Return to previous page
+    Call brs.GoBack
+    Call LoadPage
+End Sub
+
+Public Function Button(Caption As String) As Boolean
+' Clicks the button containing text Caption or returns false if button cannot be found
+Dim Element As HTMLButtonElement
+
+    Button = True
+    For Each Element In brs.Document.getElementsByTagName("Input")
+        If InStr(Element.Value, Caption) > 0 Then
+            Call Element.Click
+            Call LoadPage
+            Exit Function
+        End If
+    Next Element
+    Button = False
+    
+End Function
+
+Public Function Hyperlink(Optional Text As String, Optional URL As String, Optional DisableOnClick As Boolean) As Boolean
+' Clicks a link based on whichever of lnkText or lnkURL is provided, returning false if lnk cannot be found
+' Optional lnkOnClick can be used to disable the OnClick event for the link
+Dim Element As HTMLLinkElement
+
+    Hyperlink = False
+    If Not URL = "" Then ' hyperlink by url
+        URL = Replace(URL, "&", "&")
+        For Each Element In brs.Document.Links
+            If Element = URL Then
+                Hyperlink = True
+                Exit For
+            End If
+        Next Element
+    Else ' hyperlink by link text
+        For Each Element In brs.Document.Links
+            If Element.innerText = Text Then
+                Hyperlink = True
+                Exit For
+            End If
+        Next Element
+    End If
+    If Hyperlink Then
+        If DisableOnClick Then
+            Element.onClick = ""
+        End If
+        Call Element.Click
+        Call LoadPage
+    End If
+End Function
+
+Public Function DropDown(Name As String, Opt As Integer) As Boolean
+' Select option Opt from dropdown Name
+Dim Element As HTMLDDElement
+
+    DropDown = False
+    Set Element = brs.Document.getElementsByName(Name)
+    If Not Element Is Nothing Then
+        Element(0).Value = Opt
+        DropDown = True
+    End If
+End Function
+
+Public Function TextBox(Name As String, Text As String) As Boolean
+' Fill textbox Name with Text
+Dim Element As Variant
+
+    TextBox = False
+    Set Element = brs.Document.getElementsByName(Name)
+    If Not Element Is Nothing Then
+        Element(0).Value = Text
+        TextBox = True
+    End If
+End Function
+
+Public Function OptionButton(Name As String, Optional Num As Integer) As Boolean
+' Toggle option button Name(Num)
+Dim Element As Variant
+
+On Error GoTo ErrorHandler
+    OptionButton = True
+    Set Element = brs.Document.getElementsByName(Name)
+    If IsMissing(Num) Then
+        Element.Click
+    Else
+        Element(Num).Click
+    End If
+On Error GoTo 0
+Exit Function
+
+ErrorHandler:
+OptionButton = False
+On Error GoTo 0
+End Function
+
+Public Function FindHTML(Text As String) As Boolean
+' Searches for SearchText in browser
+    FindHTML = (InStr(brs.Document.body.innerText, Text) > 0)
+End Function
+
+Public Function FindNextTag(tagType As String, tagIndicator As String, tagDelay As Integer) As String
+' Returns the content of the tag of type tagType tagDelay tagType’s after the first one containing tagIndicator
+Dim Element As HTMLGenericElement
+Dim Count As Integer
+
+    For Each Element In brs.Document.getElementsByTagName(tagType)
+        If Count > 0 Then
+            If Not Count = tagDelay Then
+                Count = Count + 1
+            Else
+                FindNextTag = Element.innerText
+                Exit Function
+            End If
+        Else
+            If Element.innerText = tagIndicator Then
+                Count = 1
+            End If
+        End If
+    Next Element
+End Function
+
+Public Function FindValue(Name As String)
+Dim tmp As Object
+
+    Set tmp = brs.Document.all.Item(Name).Value
+    FindValue = brs.Document.all.Item(Name).Value
+End Function
+
+Public Function RegExtract(ptn As String, Optional sng As Boolean, Optional StartStr As String, Optional EndStr As String) As Variant
+' Searches for ptn as a regular expression in browser, returns submatches (case insensitive)
+Dim regEx As RegExp
+Dim Ex As Variant
+Dim Page As String
+Dim Extracted() As Variant
+Dim Record As Integer, i As Integer
+Dim StartPos As Long, EndPos As Long
+
+    Set regEx = New RegExp
+    regEx.Global = True
+    regEx.IgnoreCase = True
+    regEx.Pattern = ptn
+    Page = brs.Document.body.innerHTML
+    Page = Replace(Page, "align=center", "align=middle") ' align=center in html gets interpreted as align=middle
+    Page = Replace(Page, ",", "") ' commas make formatted numbers difficult to gather
+    StartPos = InStr(1, Page, StartStr, vbTextCompare) + Len(StartStr)
+    Page = Mid(Page, StartPos)
+    If Not EndStr = "" Then
+        EndPos = InStr(1, Page, EndStr, vbTextCompare)
+        Page = Left(Page, EndPos)
+    End If
+    Page = Replace(Page, Chr(13) & Chr(10), "") ' allows regexp to flow across lines
+    For Each Ex In regEx.Execute(Page)
+        Record = Record + 1
+        ReDim Preserve Extracted(1 To Ex.SubMatches.Count, 1 To Record)
+        For i = 1 To Ex.SubMatches.Count
+            Extracted(i, Record) = Ex.SubMatches(i - 1)
+        Next i
+    Next Ex
+    If Not Record = 0 Then
+        If Not IsMissing(sng) Then
+            If sng = True Then
+                RegExtract = Extracted(1, 1)
+                On Error GoTo 0
+                Exit Function
+            End If
+        End If
+        RegExtract = Extracted
+    End If
+End Function
+
+Public Function RunJavascript(scr As String)
+    ' Runs the javascript scr
+    Call brs.Document.parentWindow.execScript(scr, "JavaScript")
+    Call LoadPage
+End Function

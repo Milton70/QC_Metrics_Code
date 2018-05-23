@@ -1,0 +1,218 @@
+Private m_objTestSetLabelDictionary
+Private m_objTestInstanceLabelDictionary
+
+
+Sub ManualRun_Run_AfterPost
+  On Error Resume Next
+
+  intRunCycleId = Run_Fields.Field("RN_CYCLE_ID").Value
+  intRunTestId = Run_Fields.Field("RN_TESTCYCL_ID").Value
+
+  Set objTestSetFactory = TDConnection.TestSetFactory
+  Set objTestSet = objTestSetFactory.Item(intRunCycleId)
+
+  Set objTSTestFactory = objTestSet.TSTestFactory
+  Set objTest = objTSTestFactory.Item(intRunTestId)
+
+  Set objRunFactory = objTest.RunFactory
+  Set colRunList = objRunFactory.NewList("")
+
+  intRunCount = 0
+  intTotalDuration = 0
+
+  For Each objRun In colRunList
+   intRunCount = intRunCount + 1
+   intTotalDuration = intTotalDuration + objRun.Field("RN_DURATION")
+  Next
+
+  ' Update average duration value for the test instance.
+  If intRunCount > 0 Then
+    objTest.Field(m_objTestInstanceLabelDictionary.Item(TC_AVERAGE_DURATION)) = Int(intTotalDuration/intRunCount)
+    objTest.Post
+  End If
+
+  ' Total the average durations for all the tests.
+  Set colTestList = objTSTestFactory.NewList("")
+
+  intTotalTestSetDuration = 0
+
+  For Each objTSTest In colTestList
+      If objTSTest.Field(m_objTestInstanceLabelDictionary.Item(TC_AVERAGE_DURATION)) <> "" Then
+          intTotalTestSetDuration = intTotalTestSetDuration + objTSTest.Field(m_objTestInstanceLabelDictionary.Item(TC_AVERAGE_DURATION))
+      End If
+  Next
+
+  objTestSet.Field(m_objTestSetLabelDictionary.Item(CY_AVERAGE_TEST_SET_DURATION)) = intTotalTestSetDuration
+  objTestSet.Post
+
+
+
+  On Error GoTo 0
+End Sub
+
+Function ManualRun_ActionCanExecute(ActionName)
+  On Error Resume Next
+
+  ManualRun_ActionCanExecute = Project_DefaultRes
+  On Error GoTo 0
+End Function
+
+Sub ManualRun_ExitModule
+  On Error Resume Next
+
+  m_objTestSetLabelDictionary.RemoveAll
+  m_objTestInstanceLabelDictionary.RemoveAll
+
+  Set m_objTestSetLabelDictionary = Nothing
+  Set m_objTestInstanceLabelDictionary = Nothing
+
+
+
+  On Error GoTo 0
+End Sub
+
+Sub ManualRun_EnterModule
+  On Error Resume Next
+
+  Call ManualRun_Run_AssignLabels
+
+  On Error GoTo 0
+End Sub
+
+Sub ManualRun_DialogBox(DialogBoxName, IsOpen)
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Sub ManualRun_Attachment_New(Attachment)
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Function ManualRun_Attachment_CanOpen(Attachment)
+  On Error Resume Next
+
+  ManualRun_Attachment_CanOpen = Project_DefaultRes
+  On Error GoTo 0
+End Function
+
+Function ManualRun_Attachment_CanPost(Attachment)
+  On Error Resume Next
+
+  ManualRun_Attachment_CanPost = Project_DefaultRes
+  On Error GoTo 0
+End Function
+
+Function ManualRun_Attachment_CanDelete(Attachment)
+  On Error Resume Next
+
+  ManualRun_Attachment_CanDelete = Project_DefaultRes
+
+  On Error GoTo 0
+End Function
+
+Sub ManualRun_Step_New
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Sub ManualRun_Step_MoveTo
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Function ManualRun_Step_FieldCanChange(FieldName, NewValue)
+  On Error Resume Next
+
+  ManualRun_Step_FieldCanChange = Project_DefaultRes
+  On Error GoTo 0
+End Function
+
+Sub ManualRun_Step_FieldChange(FieldName)
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Sub ManualRun_Step_AfterPost
+  On Error Resume Next
+
+
+
+  On Error GoTo 0
+End Sub
+
+Function ManualRun_Run_FieldCanChange(FieldName, NewValue)
+  On Error Resume Next
+
+  ManualRun_Run_FieldCanChange = Project_DefaultRes
+  On Error GoTo 0
+End Function
+
+Sub ManualRun_Run_FieldChange(FieldName)
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Function ManualRun_Run_CanPost
+  On Error Resume Next
+
+
+
+  On Error GoTo 0
+End Function
+
+Sub ManualRun_Run_AssignLabels
+  Dim colTestSetFields
+  Dim colTestInstanceFields
+  Dim intTestSetFieldNumber
+  Dim intTestInstanceFieldNumber
+
+  On Error Resume Next
+
+  Set m_objTestSetLabelDictionary = CreateObject("Scripting.Dictionary")
+  Set m_objTestInstanceLabelDictionary = CreateObject("Scripting.Dictionary")
+
+  Set colTestSetFields = TDConnection.TestSetFactory.Fields
+  Set colTestInstanceFields = TDConnection.TSTestFactory.Fields
+
+  For intTestSetFieldNumber = 1 To colTestSetFields.Count
+    Select Case colTestSetFields.Item(intTestSetFieldNumber).Property.UserLabel
+      Case CY_AVERAGE_TEST_SET_DURATION
+        m_objTestSetLabelDictionary.Add CY_AVERAGE_TEST_SET_DURATION, colTestSetFields.Item(intTestSetFieldNumber)
+    End Select
+  Next
+
+  For intTestInstanceFieldNumber = 1 To colTestInstanceFields.Count
+    Select Case colTestInstanceFields.Item(intTestInstanceFieldNumber).Property.UserLabel
+      Case TC_AVERAGE_DURATION
+        m_objTestInstanceLabelDictionary.Add TC_AVERAGE_DURATION, colTestInstanceFields.Item(intTestInstanceFieldNumber)
+    End Select
+  Next
+
+  On Error GoTo 0
+End Sub
+
+Sub Step_FieldChange(FieldName)
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Sub Run_FieldChange(FieldName)
+  On Error Resume Next
+
+
+  On Error GoTo 0
+End Sub
+
+Sub Step_AfterPost
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub

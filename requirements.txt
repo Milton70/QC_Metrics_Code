@@ -1,0 +1,343 @@
+
+Function ExportRequirements()
+Dim strPath
+Dim strUserName
+Dim iRow
+iRow = 2
+
+    '  See where the user wants to store the output
+    strYorN = MsgBox("You have chosen the following folder path to export - [" & g_objRequirement.Path & "]. Is this correct?",VbYesNo)
+    If strYorN <> "6" Then
+       Exit Function
+    Else
+        '  Now choose where you'd like to store your file
+        strPath = BrowseFolder("My Computer",True)
+        If strPath = "" Then
+          Exit Function
+        End If
+    End If
+
+    '  Get the user name for the file
+    strUserName = Replace(User.UserName,".","")
+
+    '  Open Excel
+    Set objExcel = CreateObject("Excel.Application")
+    objExcel.Visible = False
+    objExcel.Application.DisplayAlerts = False
+
+    Set objWrkBk = objExcel.Workbooks.Add()
+    objWrkBk.SaveAs(strPath & "\QC_Requirements_Export_" & strUserName & "_" & Today & ".xlsx")
+    objWrkBk.Worksheets(1).Cells(1,1).Value = "Hierarchy"
+    objWrkBk.Worksheets(1).Cells(1,2).Value = "QC Requirement Type"
+    objWrkBk.Worksheets(1).Cells(1,3).Value = "Author"
+    objWrkBk.Worksheets(1).Cells(1,4).Value = "Name"
+    objWrkBk.Worksheets(1).Cells(1,5).Value = "Priority"
+    objWrkBk.Worksheets(1).Cells(1,6).Value = "Project"
+    objWrkBk.Worksheets(1).Cells(1,7).Value = "Description"
+
+    objWrkBk.Worksheets(1).Rows("1:1").Select
+    objWrkBk.Application.Selection.AutoFilter
+
+    '  Get the details for the id selected
+    WriteReqDetails g_objRequirement.ID, iRow
+    '  Recursive function to write out parent=>children relationships
+    ShwRqTree g_objRequirement.ID, iRow + 1
+
+    '  Choose column a
+    objWrkBk.Worksheets(1).Columns("A:A").Select
+    objExcel.Application.Selection.WrapText = True
+    objExcel.Application.Selection.ColumnWidth = 25
+
+    '  Choose column j
+    objWrkBk.Worksheets(1).Columns("G:G").Select
+    objExcel.Application.Selection.WrapText = True
+    objExcel.Application.Selection.ColumnWidth = 100
+
+    '  Do some formatting on whole page
+    objWrkBk.Worksheets(1).Cells.Select
+    objExcel.Application.Selection.VerticalAlignment = -4160
+
+    '  Reduce window zoom
+    objWrkBk.Application.ActiveWindow.Zoom = 75
+    objWrkBk.Worksheets(1).Cells.EntireColumn.AutoFit
+    objWrkBk.Worksheets(1).Cells(1,1).Activate
+
+    '  Delete the other sheets
+    objWrkBk.Sheets("Sheet4").Select
+    objExcel.ActiveWindow.SelectedSheets.Delete
+    objWrkBk.Sheets("Sheet3").Select
+    objExcel.ActiveWindow.SelectedSheets.Delete
+    objWrkBk.Sheets("Sheet2").Select
+    objExcel.ActiveWindow.SelectedSheets.Delete
+
+    '  Save and close
+    objWrkBk.SaveAs(strPath & "\QC_Requirements_Export_" & strUserName & "_" & Today & ".xlsx")
+    objWrkBk.Close
+    objExcel.Quit
+
+    '  Kill off objects
+    Set objWrkBk = Nothing
+    Set objExcel = Nothing
+    Set testF = Nothing
+    Set tdc = Nothing
+    MsgBox "Your Requirements Export has completed and can be found in [" & strPath & "]",vbOK
+
+End Function
+
+Function ShwRqTree(RqPar, iRow)
+Dim ReqFactory
+Dim ReqFilter
+Dim rq
+
+  Set ReqFactory = TDConnection.ReqFactory
+  Set ReqFilter = ReqFactory.Filter
+  ReqFilter.KeepHierarchical = True
+
+  ReqFilter.Filter("RQ_FATHER_ID") = RqPar
+
+  For Each rq In ReqFilter.NewList()
+      WriteReqDetails rq.ID, iRow
+      iRow = iRow + 1
+      ShwRqTree rq.ID, iRow
+  Next
+
+  Set ReqFactory = Nothing
+  Set ReqFilter = Nothing
+
+End Function
+
+Function WriteReqDetails(strReqId, iRow)
+Dim ReqFactory
+Dim ReqFilter
+Dim objReq
+
+  Set ReqFactory = TDConnection.ReqFactory
+  Set ReqFilter = ReqFactory.Filter
+
+  ReqFilter.Filter("RQ_REQ_ID") = strReqId
+  For Each objReq In ReqFilter.NewList()
+
+        '  Write the info
+      objWrkBk.Worksheets(1).Cells(iRow, 1).Value = objReq.Path
+      objWrkBk.Worksheets(1).Cells(iRow, 2).Value = objReq.RequirementType.Name
+      objWrkBk.Worksheets(1).Cells(iRow, 3).Value = objReq.Author
+      objWrkBk.Worksheets(1).Cells(iRow, 4).Value = objReq.Name
+      objWrkBk.Worksheets(1).Cells(iRow, 5).Value = objReq.Priority
+      objWrkBk.Worksheets(1).Cells(iRow, 6).Value = objReq.Field(GetFieldName("Project", "REQ"))
+      rc = ReworkComments(objReq.Field(GetFieldName("Description", "REQ")))
+      objWrkBk.Worksheets(1).Cells(iRow, 7).Value = rc
+
+  Next
+
+  Set ReqFactory = Nothing
+  Set ReqFilter = Nothing
+
+End Function
+
+Sub Req_MoveTo
+  Dim intReqId
+
+  On Error Resume Next
+
+  intReqId = Req_Fields.Field("RQ_REQ_ID").Value
+
+  Set objReqFactory = TDConnection.ReqFactory
+  Set g_objRequirement = objReqFactory.Item(intReqId)
+
+  Set objReqFactory = Nothing
+
+  SetupReqFields
+
+  On Error GoTo 0
+End Sub
+
+Sub Req_New
+  On Error Resume Next
+
+     SetupReqFields
+     Setup_Req_Functional_Area_Lists
+     If Req_Fields.Field("RQ_TYPE_ID").Value = "Change Control" Then
+        Req_Fields.Field(g_objReqLabelDictionary.Item (RQ_CC_STATUS)).Value = "01. New"
+        Req_Fields.Field("RQ_REQ_PRODUCT").Value = "OP661"
+        Req_Fields.Field(g_objReqLabelDictionary.Item (RQ_APPLICATION)).Value = "SwapClear Refresh (Murex)"
+     End If
+
+  On Error GoTo 0
+End Sub
+
+Function Req_FieldCanChange(FieldName, NewValue)
+  On Error Resume Next
+  Req_FieldCanChange = DefaultRes
+  On Error GoTo 0
+End Function
+
+Sub Req_FieldChange(FieldName)
+  On Error Resume Next
+    If FieldName = g_objReqLabelDictionary.Item(RQ_APPLICATION) Then
+           Setup_Req_Functional_Area_Lists
+    End If
+
+    If FieldName = g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA) Then
+           Setup_Req_Functional_Area_Lists
+    End If
+
+
+  On Error GoTo 0
+End Sub
+
+Function Req_CanPost
+  On Error Resume Next
+  If Req_Fields.Field("RQ_TYPE_ID").Value = "Change Control" Then
+    If Not User.IsInGroup("LCHC_Change_Control") Then
+      MsgBox "You do not have permission to add a 'Change Control' Requirement. Please choose another Requirement Type"
+        Req_CanPost = False
+        Exit Function
+    End If
+  End If
+
+  Req_CanPost = DefaultRes
+  On Error GoTo 0
+End Function
+
+Sub Req_AfterPost
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Sub Setup_Req_Functional_Area_Lists
+ On Error Resume Next
+
+    Select Case Req_Fields(g_objReqLabelDictionary.Item(RQ_APPLICATION)).Value
+        Case "Banking"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("Banking Functional Area")
+        Case "Blade Logic (Model Office)"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("Blade Logic Functional Area")
+        Case "Clearing GUI"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("Clearing GUI Functional Area")
+        Case "Curve Builder GUI"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("Curve Builder Functional Area")
+        Case "Curve Checker GUI"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("Curve Checker Functional Area")
+        Case "DMP"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("DMP Functional Area")
+        Case "ITD Deletions"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("ITD Deletions Functional Area")
+        Case "Margin Monitor GUI"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("Margin Monitor Functional Area")
+        Case "Markit Curve"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("Markit Curve Functional Area")
+        Case "Member Reporting"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("Member Reporting Functional Area")
+        Case "MIDAS"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("MIDAS Functional Area")
+        Case "Price Server"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("Price Server Functional Area")
+        Case "RMS"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("RMS Functional Area")
+        Case "SwapClear"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("SwapClear Functional Area")
+        Case "SWIFT"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("SWIFT Functional Area")
+        Case "Markit Wire"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("MarkitWire Functional Area")
+        Case "SwapClear Refresh (Murex)"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("SwapClear Refresh (Murex) Functional Area")
+        Case "SwapClear Refresh (LCH)"
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("SwapClear Refresh (LCH) Functional Area")
+        Case Else
+            Req_Fields(g_objReqLabelDictionary.Item(RQ_FUNCTIONAL_AREA)).List = Lists("Functional Area")
+    End Select
+
+ On Error GoTo 0
+End Sub
+
+Sub Requirement_AssignLabels
+
+On Error Resume Next
+Dim intReqFieldNumber
+Dim colReqFields
+
+      Set g_objReqLabelDictionary = CreateObject("Scripting.Dictionary")
+      Set colReqFields = TDConnection.ReqFactory.Fields
+
+      For intReqFieldNumber = 1 To colReqFields.Count
+          Select Case colReqFields.Item(intReqFieldNumber).Property.UserLabel
+            Case RQ_FUNCTIONAL_AREA
+                 g_objReqLabelDictionary.Add RQ_FUNCTIONAL_AREA, colReqFields.Item(intReqFieldNumber)
+            Case RQ_APPLICATION
+                 g_objReqLabelDictionary.Add RQ_APPLICATION, colReqFields.Item(intReqFieldNumber)
+            Case RQ_REVIEWED_BY
+                 g_objReqLabelDictionary.Add RQ_REVIEWED_BY, colReqFields.Item(intReqFieldNumber)
+            Case RQ_REVIEWED_DATE
+                 g_objReqLabelDictionary.Add RQ_REVIEWED_DATE, colReqFields.Item(intReqFieldNumber)
+            Case RQ_TEST_PHASE
+                 g_objReqLabelDictionary.Add RQ_TEST_PHASE, colReqFields.Item(intReqFieldNumber)
+            Case RQ_SUB_PROJECT
+                 g_objReqLabelDictionary.Add RQ_SUB_PROJECT, colReqFields.Item(intReqFieldNumber)
+            Case RQ_EFFORT_ESTIMATE
+                 g_objReqLabelDictionary.Add RQ_EFFORT_ESTIMATE, colReqFields.Item(intReqFieldNumber)
+            Case RQ_CC_STATUS
+                 g_objReqLabelDictionary.Add RQ_CC_STATUS, colReqFields.Item(intReqFieldNumber)
+            Case RQ_OWNER
+                 g_objReqLabelDictionary.Add RQ_OWNER, colReqFields.Item(intReqFieldNumber)
+          End Select
+   Next
+
+On Error GoTo 0
+End Sub
+
+Sub SetReqFieldApp(FieldName, Vis, Req, PNo, VOrder)
+ 'Sets a field's appearance
+       With Req_Fields(FieldName)
+        .IsVisible = Vis
+        .IsRequired = Req
+        .PageNo = PNo
+        .ViewOrder = VOrder
+       End With
+End Sub
+
+Sub SetupReqFields()
+On Error Resume Next
+
+
+    '  Depending on Requirement type
+    If Req_Fields.Field("RQ_TYPE_ID").Value = "Change Control" Then
+        SetReqFieldApp "RQ_REQ_AUTHOR", True, False, 0, 1
+        SetReqFieldApp "RQ_REQ_DATE", True, False, 0, 2
+        SetReqFieldApp "RQ_REQ_TIME", True, False, 0, 3
+        SetReqFieldApp "RQ_VTS", True, False, 0, 4
+        SetReqFieldApp g_objReqLabelDictionary.Item (RQ_CC_STATUS), True, True, 0, 5
+        SetReqFieldApp "RQ_REQ_PRODUCT", True, False, 0, 6
+        SetReqFieldApp g_objReqLabelDictionary.Item (RQ_APPLICATION), True, False, 0, 7
+        SetReqFieldApp "RQ_REQ_PRIORITY", True, True, 0, 9
+        SetReqFieldApp g_objReqLabelDictionary.Item (RQ_EFFORT_ESTIMATE), True, False, 0, 10
+        SetReqFieldApp g_objReqLabelDictionary.Item (RQ_FUNCTIONAL_AREA), True, False, 0, 11
+        SetReqFieldApp "RQ_TARGET_REL", True, False, 0, 12
+        SetReqFieldApp g_objReqLabelDictionary.Item (RQ_OWNER), True, False, 0, 13
+
+        SetReqFieldApp "RQ_REQ_REVIEWED", False, False, 0, 9
+        Req_Fields.Field("RQ_RBT_LAST_ANALYSIS_DATE").IsVisible = False
+        Req_Fields.Field("RQ_TARGET_RCYC").IsVisible = False
+
+    Else
+        SetReqFieldApp "RQ_REQ_AUTHOR", True, False, 0, 1
+        SetReqFieldApp "RQ_REQ_DATE", True, False, 0, 2
+        SetReqFieldApp "RQ_REQ_TIME", True, False, 0, 3
+        SetReqFieldApp "RQ_VTS", True, False, 0, 4
+        SetReqFieldApp "RQ_REQ_PRIORITY", True, False, 0,5
+        SetReqFieldApp "RQ_REQ_PRODUCT", True, False, 0, 8
+        SetReqFieldApp "RQ_REQ_REVIEWED", True, False, 0, 9
+        SetReqFieldApp g_objReqLabelDictionary.Item (RQ_REVIEWED_BY), True, False, 0, 10
+        SetReqFieldApp g_objReqLabelDictionary.Item (RQ_REVIEWED_DATE), True, False, 0, 11
+        SetReqFieldApp g_objReqLabelDictionary.Item (RQ_APPLICATION), True, False, 0, 12
+        SetReqFieldApp g_objReqLabelDictionary.Item (RQ_FUNCTIONAL_AREA), True, False, 0, 13
+        SetReqFieldApp g_objReqLabelDictionary.Item (RQ_TEST_PHASE), True, False, 0, 14
+        SetReqFieldApp g_objReqLabelDictionary.Item (RQ_SUB_PROJECT), True, False, 0, 15
+        SetReqFieldApp "RQ_TARGET_RCYC", True, False, 0, 16
+        SetReqFieldApp "RQ_TARGET_REL", True, False, 0, 17
+    End If
+
+On Error GoTo 0
+
+End Sub

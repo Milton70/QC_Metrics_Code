@@ -1,0 +1,417 @@
+
+Sub MoveToFolder(Folder)
+  On Error Resume Next
+
+  Set g_objFolder = Folder
+
+
+  On Error GoTo 0
+End Sub
+
+Function TestSetTests_FieldCanChange(FieldName, NewValue)
+  On Error Resume Next
+
+  Select Case FieldName
+    Case "TC_STATUS"
+      If Not (User.IsInGroup("LCHC_Test_Lead") Or User.IsInGroup("LCHC_Test_Manager")) Then
+         MsgBox "You cannot change the test status without performing a new run!", vbExclamation, "Warning"
+         TestSetTests_FieldCanChange = False
+      End If
+    Case Else
+      TestSetTests_FieldCanChange = DefaultRes
+  End Select
+
+  On Error GoTo 0
+End Function
+
+Sub TestSet_AfterPost
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Sub Run_AfterPost
+  On Error Resume Next
+
+
+  On Error GoTo 0
+End Sub
+
+Sub RunTestsManually(Tests)
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Sub RunTestSet(Tests)
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Sub TestSet_MoveTo
+  On Error Resume Next
+    TestSet_Fields("CY_USER_02").ViewOrder = 1
+    TestSet_Fields("CY_USER_03").ViewOrder = 2
+    TestSet_Fields("CY_USER_04").ViewOrder = 3
+    TestSet_Fields("CY_USER_05").ViewOrder = 4
+    TestSet_Fields("CY_USER_06").ViewOrder = 5
+    TestSet_Fields("CY_USER_07").ViewOrder = 6
+    TestSet_Fields("CY_ASSIGN_RCYC").ViewOrder = 7
+    TestSet_Fields("CY_STATUS").ViewOrder = 8
+    TestSet_Fields("CY_USER_01").ViewOrder = 9
+    TestSet_Fields("CY_OPEN_DATE").ViewOrder = 10
+    TestSet_Fields("CY_CLOSE_DATE").ViewOrder = 11
+    TestSet_Fields("CY_REQUEST_ID").ViewOrder = 12
+  On Error GoTo 0
+End Sub
+
+Sub TestSetTests_MoveTo
+  On Error Resume Next
+
+    TestSet_Fields("CY_USER_02").ViewOrder = 1
+    TestSet_Fields("CY_USER_03").ViewOrder = 2
+    TestSet_Fields("CY_USER_04").ViewOrder = 3
+    TestSet_Fields("CY_USER_05").ViewOrder = 4
+    TestSet_Fields("CY_USER_06").ViewOrder = 5
+    TestSet_Fields("CY_USER_07").ViewOrder = 6
+    TestSet_Fields("CY_ASSIGN_RCYC").ViewOrder = 7
+    TestSet_Fields("CY_STATUS").ViewOrder = 8
+    TestSet_Fields("CY_USER_01").ViewOrder = 9
+    TestSet_Fields("CY_OPEN_DATE").ViewOrder = 10
+    TestSet_Fields("CY_CLOSE_DATE").ViewOrder = 11
+    TestSet_Fields("CY_REQUEST_ID").ViewOrder = 12
+
+  On Error GoTo 0
+End Sub
+
+Sub TestSet_FieldChange(FieldName)
+On Error Resume Next
+    If TestSet_Fields.Field("CY_USER_02").Value = "OP661" Then
+    	TestSet_Fields.Field("CY_USER_04").IsRequired = True
+        'TestSet_Fields.Field("CY_USER_06").IsRequired = True
+  	Else
+		TestSet_Fields.Field("CY_USER_04").IsRequired = False
+        'TestSet_Fields.Field("CY_USER_06").IsRequired = False
+  	End If
+
+On Error GoTo 0
+End Sub
+
+Function TestSet_FieldCanChange(FieldName, NewValue)
+On Error Resume Next
+	If TestSet_Fields.Field("CY_USER_02").Value = "OP661" Then
+		TestSet_Fields.Field("CY_USER_04").IsRequired = True
+        'TestSet_Fields.Field("CY_USER_06").IsRequired = True
+  	Else
+		TestSet_Fields.Field("CY_USER_04").IsRequired = False
+        'TestSet_Fields.Field("CY_USER_06").IsRequired = False
+  	End If
+
+    If FieldName = "CY_USER_06" Then
+    	Select Case NewValue
+        	Case "Risk"
+                TestSet_Fields.Field("CY_USER_05").List = Lists("Risk Test Cycle")
+            Case "Operations"
+            	TestSet_Fields.Field("CY_USER_05").List = Lists("Operations Test Cycle")
+            Case "Reporting"
+            	TestSet_Fields.Field("CY_USER_05").List = Lists("Reporting Test Cycle")
+            Case "Technical","Techincial"
+            	TestSet_Fields.Field("CY_USER_05").List = Lists("Technical Test Cycle")
+            Case Else
+                TestSet_Fields.Field("CY_USER_05").List = Lists("Test Cycle")
+        End Select
+    End If
+
+
+	TestSet_FieldCanChange = DefaultRes
+On Error GoTo 0
+End Function
+
+Sub TestSetTests_FieldChange(FieldName)
+  On Error Resume Next
+    If FieldName = "TC_PLAN_SCHEDULING_DATE" Then
+    	If TestSetTest_Fields.Field("TC_USER_03").Value = "" Then
+            TestSetTest_Fields.Field("TC_USER_03").Value = TestSetTest_Fields.Field("TC_PLAN_SCHEDULING_DATE").Value
+        End If
+    End If
+    If FieldName =  "TC_USER_03" Then
+        If TestSetTest_Fields.Field("TC_PLAN_SCHEDULING_DATE"). Value = "" Then
+        	MsgBox "You cannot enter a replanned exec date without entering a baseline planned date first", vbExclamation, "Warning"
+            TestSetTest_Fields.Field("TC_USER_03").Value = ""
+        End If
+    End If
+
+  On Error GoTo 0
+End Sub
+
+Sub Run_MoveTo
+
+On Error Resume Next
+
+
+  On Error GoTo 0
+
+End Sub
+
+Function Run_CanPost
+  On Error Resume Next
+
+    Run_CanPost = DefaultRes
+
+  On Error GoTo 0
+End Function
+
+Function TestSet_CanRemoveTests(Tests)
+  On Error Resume Next
+
+  TestSet_CanRemoveTests = DefaultRes
+  On Error GoTo 0
+End Function
+
+Function TestSet_CanAddTests(Tests)
+  On Error Resume Next
+
+  TestSet_CanAddTests = DefaultRes
+  On Error GoTo 0
+End Function
+
+Function TestSet_CanDelete(Entity,IsTestSet)
+  On Error Resume Next
+
+  TestSet_CanDelete = DefaultRes
+  On Error GoTo 0
+End Function
+
+Function TestSet_CanPost
+  On Error Resume Next
+
+
+  TestSet_CanPost = DefaultRes
+
+  On Error GoTo 0
+End Function
+
+Public Function ExportTestsByTestSet()
+On Error Resume Next
+Dim testSet
+Dim testF
+Dim tstSet
+Dim testSetFilter
+Dim TestFilter
+Dim tst
+Dim desstepF
+Dim desstep
+Dim tList
+Dim dList
+Dim iRow
+Dim myArr()
+Dim iCount
+iRow = 2
+iCount = -1
+
+         '	Get the path for the test that's been selected
+         strFolderPath = g_objFolder.Path
+         strYorN = MsgBox("You have chosen the following folder path to export - [" & strFolderPath & "]. Is this correct?",VbYesNo)
+         If strYorN <> "6" Then
+            Exit Function
+         Else
+         	'	Now choose where you'd like to store your file
+                 strPath = BrowseFolder("My Computer",True)
+                 If strPath = "" Then
+                    Exit Function
+                 Else
+                    Set objWshShell = CreateObject("WScript.Shell")
+                    objWshShell.Sleep 60
+                    Set objWshShell = Nothing
+                 End If
+         End If
+
+	     '	Open Excel
+         Set objExcel = CreateObject("Excel.Application")
+         objExcel.Visible = False
+         objExcel.Application.DisplayAlerts = False
+
+		 Set objWrkBk = objExcel.Workbooks.Add()
+		 objWrkBk.SaveAs(strPath & "\QC_Test_Set_Export.xlsx")
+         objWrkBk.Worksheets(1).Cells(1,1).Value = "Test Set Folder"
+         objWrkBk.Worksheets(1).Cells(1,2).Value = "Test Set Name"
+         objWrkBk.Worksheets(1).Cells(1,3).Value = "Test Case Folder"
+         objWrkBk.Worksheets(1).Cells(1,4).Value = "Test Case Name"
+         objWrkBk.Worksheets(1).Cells(1,5).Value = "Application"
+         objWrkBk.Worksheets(1).Cells(1,6).Value = "Functional Area"
+         objWrkBk.Worksheets(1).Cells(1,7).Value = "Created for Project"
+         objWrkBk.Worksheets(1).Cells(1,8).Value = "Description"
+         objWrkBk.Worksheets(1).Cells(1,9).Value = "Priority"
+         objWrkBk.Worksheets(1).Cells(1,10).Value = "Step Name"
+         objWrkBk.Worksheets(1).Cells(1,11).Value = "Step Description"
+         objWrkBk.Worksheets(1).Cells(1,12).Value = "Step Expected Result"
+         objWrkBk.Worksheets(1).Cells(1,13).Value = "Test Execution Status"
+
+		 objWrkBk.Worksheets(1).Rows("1:1").Select
+         objWrkBk.Application.Selection.AutoFilter
+
+         '	Open the connection to QC
+    	 Set tdc = TDConnection
+         '	Create test set factory
+    	 Set testSet = tdc.TestSetFactory
+         '	Create the list of test sets
+    	 Set tList = testSet.NewList("")
+
+         '	Loop round the list
+		 For Each tstSet In tList
+        		rc = tstSet.TestSetFolder.Path
+        		If InStr(1, rc, strFolderPath) > 0 Then
+
+                         Set InstFilter = tstSet.TSTestFactory.Filter
+            		InstFilter.Order("TC_TEST_ORDER") = 1
+            		For Each mytst In InstFilter.NewList
+                			iCount = iCount + 1
+                			ReDim Preserve myArr(iCount)
+                			myArr(iCount) = mytst.Name
+            		Next
+
+            		'   Get a cross reference to the tests within the test set
+            		Set testSetFilter = testSet.Filter
+            		'   Choose this test set
+            		testSetFilter.Filter("CY_CYCLE_ID") = tstSet.ID
+            		Set testF = tdc.TestFactory
+            		Set TestFilter = testF.Filter
+            		TestFilter.SetXFilter "TEST-TESTSET", True, testSetFilter.Text
+            		Set testL = testF.NewList(TestFilter.Text)
+
+                         '	Loop round the array
+                         For Each Ele In myArr
+                         	'	Loop round tests in the test set
+            				For Each tst In testL
+                                         '   See if this one matches our test id
+                    			If InStr(1, Ele, tst.Name) Then
+
+                                	'   Get link to design steps
+	                                Set desstepF = tst.DesignStepFactory
+	                                Set dList = desstepF.NewList("")
+
+                					For Each desstep In dList
+                                        On Error Resume Next
+	                                    '   Write out the test set
+	                                    objWrkBk.Worksheets(1).Cells(iRow, 1).Value = tstSet.TestSetFolder.Name
+	                                	objWrkBk.Worksheets(1).Cells(iRow, 2).Value = tstSet.Name
+	                                    rc = tst.Field("TS_SUBJECT").Path
+	                                    objWrkBk.Worksheets(1).Cells(iRow, 3).Value = rc
+	                                	objWrkBk.Worksheets(1).Cells(iRow, 4).Value = tst.Name
+	                                    objWrkBk.Worksheets(1).Cells(iRow, 5).Value = tst.Field(GetFieldName("Application", "TEST"))
+	                                    objWrkBk.Worksheets(1).Cells(iRow, 6).Value = tst.Field(GetFieldName("Functional Area", "TEST"))
+	                                    objWrkBk.Worksheets(1).Cells(iRow, 7).Value = tst.Field(GetFieldName("Created for Project", "TEST"))
+	                                    strDesc = ReworkComments(tst.Field("TS_DESCRIPTION"))
+	                                    '   Split the comments if there's any vbLf characters
+	                                    mysplit = Split(strDesc, "vbLf")
+	                                	If UBound(mysplit) > 0 Then
+	                                	   strDesc = ""
+	                                       For i = 0 To UBound(mysplit)
+	                                       		If mysplit(i) <> "" And mysplit(i) <> " " Then
+	                                            	If i = 0 Then
+	                                                	strDesc = mysplit(i)
+	                                                Else
+	                                                	If strDesc <> "" Then
+	                                                    	strDesc = strDesc & vbLf & mysplit(i)
+	                                                    Else
+	                                                		strDesc = mysplit(i)
+	                                                    End If
+	                                                End If
+	                                            End If
+	                                       	Next
+	                                       	objWrkBk.Worksheets(1).Cells(iRow, 8).Value = strDesc
+	                                	Else
+	                                		objWrkBk.Worksheets(1).Cells(iRow, 8).Value = strDesc
+	                                	End If
+                                        objWrkBk.Worksheets(1).Cells(iRow, 9).Value = tst.Field(GetFieldName("Priority", "TEST"))
+	                                    objWrkBk.Worksheets(1).Cells(iRow, 10).Value = desstep.StepName
+	                                    strDesc = ReworkComments(desstep.StepDescription)
+	                                    '   Split the comments if there's any vbLf characters
+	                                    mysplit = Split(strDesc, "vbLf")
+	                                    If UBound(mysplit) > 0 Then
+                                        	strDesc = ""
+	                                        For i = 0 To UBound(mysplit)
+                            					If mysplit(i) <> "" And mysplit(i) <> " " Then
+                                					If i = 0 Then
+                                    					strDesc = mysplit(i)
+                                					Else
+                                    					If strDesc <> "" Then
+                                        					strDesc = strDesc & vbLf & mysplit(i)
+                                    					Else
+                                        					strDesc = mysplit(i)
+                                    					End If
+                                					End If
+                            					End If
+                        					Next
+                        					objWrkBk.Worksheets(1).Cells(iRow, 11).Value = strDesc
+                    					Else
+                        						objWrkBk.Worksheets(1).Cells(iRow, 11).Value = strDesc
+                    					End If
+                                        strDesc = ReworkComments(desstep.StepExpectedResult)
+	                                    '   Split the comments if there's any vbLf characters
+	                                    mysplit = Split(strDesc, "vbLf")
+	                                    If UBound(mysplit) > 0 Then
+                                        	strDesc = ""
+	                                        For i = 0 To UBound(mysplit)
+                            					If mysplit(i) <> "" And mysplit(i) <> " " Then
+                                					If i = 0 Then
+                                    					strDesc = mysplit(i)
+                                					Else
+                                    					If strDesc <> "" Then
+                                        					strDesc = strDesc & vbLf & mysplit(i)
+                                    					Else
+                                        					strDesc = mysplit(i)
+                                    					End If
+                                					End If
+                            					End If
+                        					Next
+                        					objWrkBk.Worksheets(1).Cells(iRow, 12).Value = strDesc
+                    					Else
+                        					objWrkBk.Worksheets(1).Cells(iRow, 12).Value = strDesc
+                    					End If
+                                        objWrkBk.Worksheets(1).Cells(iRow, 13).Value = tst.Field("TS_EXEC_STATUS")
+                    					iRow = iRow + 1
+                					Next
+                                         End If
+                                 Next
+            		Next
+        		End If
+    	 Next
+         '	Do some formatting
+         objWrkBk.Worksheets(1).Cells.Select
+         objWrkBk.Worksheets(1).Cells.EntireColumn.AutoFit
+         objWrkBk.Application.ActiveWindow.Zoom = 75
+         objWrkBk.Worksheets(1).Cells(1,1).Activate
+         objWrkBk.SaveAs (strPath & "\QC_Test_Set_Export.xlsx")
+         objWrkBk.Close
+         Set objWrkBk = Nothing
+         Set objExcel = Nothing
+    	 Set testF = Nothing
+         Set tdc = Nothing
+         MsgBox "Your Test Set Export has completed and can be found in [" & strPath & "]",vbOK
+	On Error GoTo 0
+End Function
+
+Sub RunTests(Tests)
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Sub TestSet_New
+  On Error Resume Next
+    TestSet_Fields("CY_USER_02").ViewOrder = 1
+    TestSet_Fields("CY_USER_03").ViewOrder = 2
+    TestSet_Fields("CY_USER_04").ViewOrder = 3
+    TestSet_Fields("CY_USER_05").ViewOrder = 4
+    TestSet_Fields("CY_USER_06").ViewOrder = 5
+    TestSet_Fields("CY_USER_07").ViewOrder = 6
+    TestSet_Fields("CY_ASSIGN_RCYC").ViewOrder = 7
+    TestSet_Fields("CY_STATUS").ViewOrder = 8
+    TestSet_Fields("CY_USER_01").ViewOrder = 9
+    TestSet_Fields("CY_OPEN_DATE").ViewOrder = 10
+    TestSet_Fields("CY_CLOSE_DATE").ViewOrder = 11
+    TestSet_Fields("CY_REQUEST_ID").ViewOrder = 12
+  On Error GoTo 0
+End Sub

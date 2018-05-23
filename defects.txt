@@ -1,0 +1,664 @@
+Function Defects_ActionCanExecute(ActionName)
+  On Error Resume Next
+  Defects_ActionCanExecute = Project_DefaultRes
+  On Error GoTo 0
+End Function
+
+Sub Defects_Bug_New
+  On Error Resume Next
+    'Set the mandatory fields for new defects
+    Call SetupFields("New")
+
+    'Set the values in the status drop down list
+    Call SetStatus
+
+    'Set the reopen count to zero for a new defect
+    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_REOPEN_COUNT)).IsReadOnly = False
+    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_REOPEN_COUNT)).Value =  0
+    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_REOPEN_COUNT)).IsReadOnly = True
+
+    'Set the failed count to zero for a new defect
+    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_COUNT)).IsReadOnly = False
+    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_COUNT)).Value =  0
+    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_COUNT)).IsReadOnly = True
+
+    'Set the user name to user currently logged in and make this read only so can't be changed.
+    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_RAISED_BY)).IsReadOnly = False
+    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_RAISED_BY)).Value = User.UserName
+    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_RAISED_BY)).IsReadOnly = True
+
+    Bug_Fields.Field("BG_STATUS").IsReadOnly = True
+
+ On Error GoTo 0
+End Sub
+
+Sub Defects_Bug_MoveTo
+ On Error Resume Next
+    Call SetupFields(Bug_Fields.Field("BG_STATUS").Value)
+ On Error GoTo 0
+End Sub
+
+Function Defects_Bug_FieldCanChange(FieldName, NewValue)
+ On Error Resume Next
+    Defects_Bug_FieldCanChange = Project_DefaultRes
+ On Error GoTo 0
+End Function
+
+Sub Defects_Bug_FieldChange(FieldName)
+ On Error Resume Next
+ If FieldName = "BG_STATUS" Then
+     Call SetupFields(Bug_Fields.Field("BG_STATUS").Value)
+     Call SetStatus
+ End If
+ If FieldName = Bug_Fields.Field("BG_PROJECT") Then
+   If Bug_Fields.Field("BG_PROJECT").Value = "OP661" Then
+      SetFieldApp g_objBugLabelDictionary.Item(BG_SUB_PROJECT), True, True, 0, 5
+      SetFieldApp g_objBugLabelDictionary.Item(BG_OWNER), True, True, 2, 14
+    Else
+      SetFieldApp g_objBugLabelDictionary.Item(BG_SUB_PROJECT), True, False, 0, 5
+      SetFieldApp g_objBugLabelDictionary.Item(BG_OWNER), True, False, 2, 14
+    End If
+ End If
+ On Error GoTo 0
+End Sub
+
+Function Defects_Attachment_CanOpen(Attachment)
+ On Error Resume Next
+    Defects_Attachment_CanOpen = Project_DefaultRes
+ On Error GoTo 0
+End Function
+
+Function Defects_Attachment_CanPost(Attachment)
+ On Error Resume Next
+    Defects_Attachment_CanPost = Project_DefaultRes
+ On Error GoTo 0
+End Function
+
+Function Defects_Attachment_CanDelete(Attachment)
+ On Error Resume Next
+    Defects_Attachment_CanDelete = Project_DefaultRes
+ On Error GoTo 0
+End Function
+
+Function Defects_GetNewBugPageName(PageName,PageNum)
+ On Error Resume Next
+    Call SetupFields
+    Select Case PageNum
+           Case "1"
+                Defects_GetNewBugPageName="Details"
+           Case "2"
+                Defects_GetNewBugPageName="Testing"
+           Case Else
+                Defects_GetNewBugPageName="Planning"
+    End Select
+
+  On Error GoTo 0
+End Function
+
+Function Defects_GetDetailsPageName(PageName,PageNum)
+ On Error Resume Next
+    Call SetupFields(Bug_Fields.Field("BG_STATUS").Value)
+    Call SetStatus
+    Select Case PageNum
+           Case "1"
+                Defects_GetDetailsPageName="Details"
+           Case "2"
+                Defects_GetDetailsPageName="Testing"
+           Case Else
+                Defects_GetDetailsPageName="Planning"
+    End Select
+ On Error GoTo 0
+End Function
+
+Function Defects_Bug_CanPost
+ On Error Resume Next
+    Defects_Bug_CanPost = Project_DefaultRes
+ On Error GoTo 0
+End Function
+
+Sub SetFieldApp(FieldName, Vis, Req, PNo, VOrder)
+ 'Sets a field's appearance
+       With Bug_Fields(FieldName)
+        .IsVisible = Vis
+        .IsRequired = Req
+        .PageNo = PNo
+        .ViewOrder = VOrder
+       End With
+End Sub
+
+Sub SetupFields(BugStatus)
+
+    'Set the default field states for defects
+    SetFieldApp "BG_SUMMARY", True, True, 0, 1             'Summary
+    SetFieldApp "BG_DESCRIPTION", True, True, 0, 2         'Description
+    'SetFieldApp g_objBugLabelDictionary.Item(BG_PROJECT_CODE), True, True, 0, 3             'Project Code
+    SetFieldApp "BG_PROJECT", True, True, 0, 3             'Project
+    SetFieldApp g_objBugLabelDictionary.Item(BG_APPLICATION), True, True, 0, 4             'System
+    SetFieldApp g_objBugLabelDictionary.Item(BG_SUB_PROJECT), True, False, 0,5         'Sub Project
+    SetFieldApp g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA), True, True, 0, 6             'Functional Area
+    SetFieldApp "BG_DETECTED_BY", True, True, 0, 7         'Detecty By
+    SetFieldApp "BG_SEVERITY", True, True, 0, 8            'Severity
+    SetFieldApp "BG_DETECTION_VERSION", True, True, 0, 9   'Detected in Version
+    SetFieldApp g_objBugLabelDictionary.Item(BG_TEST_PHASE), True, True, 0, 10             'Test Phase
+    SetFieldApp "BG_DETECTION_DATE", True, True, 0, 11      'Detected on Date
+    SetFieldApp g_objBugLabelDictionary.Item(BG_ENVIRONMENT), True, True, 0, 12             'Environment
+    SetFieldApp "BG_PRIORITY", True, False, 0, 13          'Priority
+    SetFieldApp "BG_RESPONSIBLE", True, False, 0, 14       'Assigned To
+    SetFieldApp "BG_STATUS", True, True, 0, 15             'Status
+    SetFieldApp g_objBugLabelDictionary.Item(BG_ESTIMATED_RESOLUTION), True, False, 0, 16      ' est resolution
+
+    ' Page 1 Fields
+    SetFieldApp g_objBugLabelDictionary.Item(BG_RAISED_BY), True, False, 1, 1            'Raised By
+    SetFieldApp "BG_SUBJECT", True, False, 1, 2            'Subject
+    SetFieldApp g_objBugLabelDictionary.Item(BG_TEST_CASE_ID), True, False, 1, 3            'Test Case ID
+    SetFieldApp "BG_REPRODUCIBLE", True, False, 1, 4       'Reproducible
+    SetFieldApp "BG_VTS", True, False, 1, 5                'Modified
+    SetFieldApp g_objBugLabelDictionary.Item(BG_DUPLICATE_OF_DEFECT), True, False, 1, 6            'Duplicate of
+    SetFieldApp g_objBugLabelDictionary.Item(BG_REASON_FOR_REJECTING), True, False, 1, 7            'Reason For Rejection
+    SetFieldApp g_objBugLabelDictionary.Item(BG_TESTED_ON_DATE), True, False, 1, 8            'Tested on Date
+    SetFieldApp g_objBugLabelDictionary.Item(BG_TESTED_BY), True, False, 1, 9            'Tested By
+    SetFieldApp g_objBugLabelDictionary.Item(BG_TESTED_IN_VERSION), True, False, 1, 10            'Tested In Version
+    SetFieldApp g_objBugLabelDictionary.Item(BG_FAILED_ON_DATE), True, False, 1, 11           'Failed on Date
+    SetFieldApp g_objBugLabelDictionary.Item(BG_FAILED_BY), True, False, 1, 12            'Failed By
+    SetFieldApp g_objBugLabelDictionary.Item(BG_FAILED_IN_VERSION), True, False, 1, 13            'Failed In Version
+    SetFieldApp g_objBugLabelDictionary.Item(BG_FAILED_COUNT), True, False, 1, 14            'Failed count
+    SetFieldApp g_objBugLabelDictionary.Item(BG_REOPEN_COUNT), True, False, 1, 15            'Reopen count
+    SetFieldApp g_objBugLabelDictionary.Item(BG_BUILD_DATE), True, False, 1, 16           'Build Release Date
+
+    ' Page 2 Fields
+    SetFieldApp "BG_TARGET_REL", True, False, 2, 1            'Target Release
+    SetFieldApp "BG_TARGET_RCYC", True, False, 2, 2       'Target Cycle
+    SetFieldApp "BG_ACTUAL_FIX_TIME", True, False, 2, 3    'Actual Fix Time
+    SetFieldApp "BG_ESTIMATED_FIX_TIME", True, False, 2, 4    'Estimated Fix Time
+    SetFieldApp g_objBugLabelDictionary.Item(BG_ESTIMATED_FIX_DATE), True, False, 2, 5  'Estimated Fix Date
+    SetFieldApp "BG_PLANNED_CLOSING_VER", True, False, 2, 6    'Planned closing ver
+    SetFieldApp "BG_CLOSING_VERSION", True, False, 2, 7    ' closing ver
+    SetFieldApp "BG_CLOSING_DATE", True, False, 2, 8    ' closing date
+    SetFieldApp "BG_DETECTED_IN_REL", True, False, 2, 9    'Detected in Release
+    SetFieldApp "BG_DETECTED_IN_RCYC", True, False, 2, 10    'Detected in Cycle
+    SetFieldApp g_objBugLabelDictionary.Item(BG_CR_REF), True, False, 2, 11             'CR Reference No.
+    SetFieldApp g_objBugLabelDictionary.Item(BG_ROOT_CAUSE), True, False, 2, 12          'Root Cause
+    SetFieldApp g_objBugLabelDictionary.Item(BG_FIXED_ON_DATE), True, False, 2, 13          'Fixed on Date
+    SetFieldApp g_objBugLabelDictionary.Item(BG_REFERENCE), True, False, 2, 14          'Other Reference No.
+    SetFieldApp g_objBugLabelDictionary.Item(BG_OWNER), True, True, 2, 15          'Owner
+    SetFieldApp g_objBugLabelDictionary.Item(BG_MUREX_BINARY), True, False, 2, 16
+
+    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_COUNT)).IsReadOnly = True
+    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_REOPEN_COUNT)).IsReadOnly = True
+    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_RAISED_BY)).IsReadOnly = True
+
+    ' Override the field states according to their status
+    Select Case BugStatus
+        Case "New"
+            '  See if our user is one of Samantha-Jane's group
+            'If User.UserName = "samantha-jane.clark" Or User.UserName = "shefali.chandran" Or User.UserName = "paul.wilson" Or User.UserName = "peter.m.jones"  Then
+            '    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_APPLICATION)).Value = "SwapClear Refresh (Murex)"
+            '    Setup_Functional_Area_Lists
+            '    Bug_Fields.Field("BG_DETECTION_VERSION").Value = "Murex Drop 1"
+            '    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_ENVIRONMENT)).Value = "SwapClear MUREX  tswp01"
+            '    Bug_Fields.Field("BG_PROJECT").Value = "OP661"
+            '    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_TEST_PHASE)).Value = "Functional Test"
+            '    Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_SUB_PROJECT)).Value = "Functional Test 1"
+            'End If
+        Case "Duplicate"
+            SetFieldApp g_objBugLabelDictionary.Item(BG_DUPLICATE_OF_DEFECT), True, True, 1, 6        'Duplicate of
+            Clear_Dates
+            SetFieldApp g_objBugLabelDictionary.Item(BG_ROOT_CAUSE), True, True, 2, 11       'Root Cause
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_ROOT_CAUSE)).Value = "Duplicate"
+
+        Case "Rejected"
+            SetFieldApp g_objBugLabelDictionary.Item(BG_REASON_FOR_REJECTING), True, True, 1, 7         'Reason For Rejection
+            Clear_Dates
+            SetFieldApp g_objBugLabelDictionary.Item(BG_ROOT_CAUSE), True, True, 2, 11       'Root Cause
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_ROOT_CAUSE)).Value = "Rejected"
+
+        Case "On Hold"
+            SetFieldApp "BG_RESPONSIBLE", True, True, 0, 14    'Assigned To
+            SetFieldApp "BG_PRIORITY", True, True, 0, 13       'Priority
+
+        Case "Assigned"
+            SetFieldApp "BG_RESPONSIBLE", True, True, 0, 14    'Assigned To
+            SetFieldApp "BG_PRIORITY", True, True, 0, 13       'Priority
+            Clear_Dates
+
+        Case "Open"
+            SetFieldApp "BG_RESPONSIBLE", True, True, 0, 14    'Assigned To
+            SetFieldApp "BG_PRIORITY", True, True, 0, 13       'Priority
+            SetFieldApp "BG_ESTIMATED_FIX_TIME", True, False, 2, 4 'Estimated Fix Time
+            SetFieldApp g_objBugLabelDictionary.Item(BG_ESTIMATED_FIX_DATE), True, True, 2, 5
+            SetFieldApp "BG_PLANNED_CLOSING_VER", True, True, 2, 5 'Planned Closing Ver
+            SetFieldApp g_objBugLabelDictionary.Item(BG_ESTIMATED_RESOLUTION), True, True, 0, 16
+
+        Case "Fixed"
+            SetFieldApp "BG_RESPONSIBLE", True, True, 0, 14   'Assigned To
+            SetFieldApp "BG_PRIORITY", True, True, 0, 13       'Priority
+            SetFieldApp g_objBugLabelDictionary.Item(BG_ROOT_CAUSE), True, True, 2, 11       'Root Cause
+            SetFieldApp g_objBugLabelDictionary.Item(BG_FIXED_ON_DATE), True, True, 2, 12       'Fixed on Date
+            SetFieldApp "BG_ESTIMATED_FIX_TIME", True, False, 2, 4 'Estimated Fix Time
+            SetFieldApp "BG_PLANNED_CLOSING_VER", True, True, 2, 5 'Planned Closing Ver
+            If Bug_Fields.Field("BG_PROJECT").Value <> "OP661" Then
+               SetFieldApp "BG_ACTUAL_FIX_TIME", True, True, 2, 3 'Actual Fix Time
+            Else
+               SetFieldApp "BG_ACTUAL_FIX_TIME", True, False, 2, 3 'Actual Fix Time
+            End If
+            If User.IsInGroup("LCHC_Development_Lead") Or User.IsInGroup("LCHC_Murex_Consultant") Then
+              SetFieldApp "BG_TARGET_REL", True, True, 2, 1
+            Else
+              SetFieldApp "BG_TARGET_REL", True, False, 2, 1
+            End If
+
+        Case "Tested"
+            SetFieldApp "BG_RESPONSIBLE", True, True, 0, 14   'Assigned To
+            SetFieldApp "BG_PRIORITY", True, True, 0, 13       'Priority
+            SetFieldApp g_objBugLabelDictionary.Item(BG_ROOT_CAUSE), True, True, 2, 11       'Root Cause
+            SetFieldApp g_objBugLabelDictionary.Item(BG_FIXED_ON_DATE), True, True, 2, 12       'Fixed on Date
+            SetFieldApp g_objBugLabelDictionary.Item(BG_TESTED_ON_DATE), True, True, 1, 8        'Tested on Date
+            SetFieldApp g_objBugLabelDictionary.Item(BG_TESTED_BY), True, True, 1, 9        'Tested By
+            SetFieldApp g_objBugLabelDictionary.Item(BG_TESTED_IN_VERSION), True, True, 1, 10        'Tested In Version
+            SetFieldApp "BG_ESTIMATED_FIX_TIME", True, False, 2, 4 'Estimated Fix Time
+            SetFieldApp "BG_PLANNED_CLOSING_VER", True, True, 2, 5 'Planned Closing Ver
+            SetFieldApp "BG_ACTUAL_FIX_TIME", True, False, 2, 3 'Actual Fix Time
+
+        Case "Closed"
+            SetFieldApp "BG_RESPONSIBLE", True, True, 0, 14   'Assigned To
+            SetFieldApp "BG_PRIORITY", True, True, 0, 13       'Priority
+            SetFieldApp g_objBugLabelDictionary.Item(BG_ROOT_CAUSE), True, True, 2, 11       'Root Cause
+
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FIXED_ON_DATE)).IsReadOnly = True
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_TESTED_ON_DATE)).IsReadOnly = True
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_TESTED_BY)).IsReadOnly = True
+            Bug_Fields.Field(g_objBugLabelDictionary.Item("BG_ESTIMATED_FIX_TIME")).IsReadOnly = True
+            Bug_Fields.Field(g_objBugLabelDictionary.Item("BG_PLANNED_CLOSING_VER")).IsReadOnly = True
+            Bug_Fields.Field(g_objBugLabelDictionary.Item("BG_ACTUAL_FIX_TIME")).IsReadOnly = True
+
+            SetFieldApp "BG_CLOSING_VERSION", True, True, 2, 6 'closing Version
+            SetFieldApp "BG_CLOSING_DATE", True, True, 2, 7   'Closing Date
+
+        Case "Reopen"
+            SetFieldApp g_objBugLabelDictionary.Item(BG_REOPEN_COUNT), True, False, 1, 10         'Reopen count
+            SetFieldApp "BG_RESPONSIBLE", True, True, 0, 14    'Assigned To
+            SetFieldApp "BG_PRIORITY", True, True, 0, 13       'Priority
+            Clear_Dates
+
+        Case "Ready for Testing"
+          SetFieldApp g_objBugLabelDictionary.Item(BG_BUILD_DATE), True, True, 1, 11         'Build Release Date
+            SetFieldApp "BG_RESPONSIBLE", True, True, 0, 14   'Assigned To
+            SetFieldApp "BG_PRIORITY", True, True, 0, 13       'Priority
+            SetFieldApp "BG_PLANNED_CLOSING_VER", True, True, 2, 5 'Planned Closing Ver
+            SetFieldApp g_objBugLabelDictionary.Item(BG_ROOT_CAUSE), True, True, 2, 11       'Root Cause
+            SetFieldApp g_objBugLabelDictionary.Item(BG_FIXED_ON_DATE), True, True, 2, 12       'Fixed on Date
+            If User.IsInGroup("LCHC_Development_Lead") Then
+              SetFieldApp "BG_TARGET_REL", True, True, 2, 1
+            End If
+
+        Case "Failed Testing"
+            SetFieldApp "BG_RESPONSIBLE", True, True, 0, 14   'Assigned To
+            SetFieldApp "BG_PRIORITY", True, True, 0, 13       'Priority
+            SetFieldApp g_objBugLabelDictionary.Item(BG_ROOT_CAUSE), True, True, 2, 11       'Root Cause
+            SetFieldApp g_objBugLabelDictionary.Item(BG_FIXED_ON_DATE), True, True, 2, 12       'Fixed on Date
+            SetFieldApp g_objBugLabelDictionary.Item(BG_FAILED_ON_DATE), True, True, 1, 11        'Failed on Date
+            SetFieldApp g_objBugLabelDictionary.Item(BG_FAILED_BY), True, True, 1, 12        'Failed By
+            SetFieldApp g_objBugLabelDictionary.Item(BG_FAILED_IN_VERSION), True, True, 1, 13        'Failed In Version
+            SetFieldApp "BG_ESTIMATED_FIX_TIME", True, False, 2, 4 'Estimated Fix Time
+            SetFieldApp "BG_PLANNED_CLOSING_VER", True, False, 2, 5 'Planned Closing Ver
+            SetFieldApp "BG_ACTUAL_FIX_TIME", True, False, 2, 3 'Actual Fix Time
+            SetFieldApp g_objBugLabelDictionary.Item(BG_FAILED_COUNT), True, False, 1, 14         'Failed count
+
+      End Select
+End Sub
+
+Sub SetStatus
+  'Set the lists available in the status field.  This ensures that the defect flow is followed.
+  Select Case Bug_Fields("BG_STATUS").Value
+        Case "Assigned"
+            Bug_Fields("BG_STATUS").List = Lists("Status_Assigned")
+        Case "Closed"
+            Bug_Fields("BG_STATUS").List = Lists("Status_Closed")
+        Case "Duplicate"
+            Bug_Fields("BG_STATUS").List = Lists("Status_Duplicate")
+        Case "Fixed"
+            Bug_Fields("BG_STATUS").List = Lists("Status_Fixed")
+        Case "New"
+            Bug_Fields("BG_STATUS").List = Lists("Status_New")
+        Case "On Hold"
+            Bug_Fields("BG_STATUS").List = Lists("Status_OnHold")
+        Case "Open"
+            Bug_Fields("BG_STATUS").List = Lists("Status_Open")
+        Case "Rejected"
+            Bug_Fields("BG_STATUS").List = Lists("Status_Rejected")
+        Case "Reopen"
+            Bug_Fields("BG_STATUS").List = Lists("Status_Reopen")
+        Case "Tested"
+            Bug_Fields("BG_STATUS").List = Lists("Status_Tested")
+        Case "Failed Testing"
+             Bug_Fields("BG_STATUS").List = Lists("Status_Failed")
+        Case "Ready for Testing"
+             Bug_Fields("BG_STATUS").List = Lists("Status_Ready")
+    End Select
+End Sub
+
+Function Defects_InitNewTask(Items, NewTask)
+ On Error Resume Next
+    Defects_InitNewTask = Project_DefaultRes
+ On Error GoTo 0
+End Function
+
+Sub Defects_AssignLabels
+
+ On Error Resume Next
+
+ Dim colBugFields
+ Dim intBugFieldNumber
+
+    Set g_objBugLabelDictionary = CreateObject("Scripting.Dictionary")
+    Set colBugFields = TDConnection.BugFactory.Fields
+
+    For intBugFieldNumber = 1 To colBugFields.Count
+      Select Case colBugFields.Item(intBugFieldNumber).Property.UserLabel
+          Case BG_REOPEN_COUNT
+              g_objBugLabelDictionary.Add BG_REOPEN_COUNT, colBugFields.Item(intBugFieldNumber)
+          Case BG_DUPLICATE_OF_DEFECT
+              g_objBugLabelDictionary.Add BG_DUPLICATE_OF_DEFECT, colBugFields.Item(intBugFieldNumber)
+          Case BG_RAISED_BY
+              g_objBugLabelDictionary.Add BG_RAISED_BY, colBugFields.Item(intBugFieldNumber)
+          Case BG_TEST_PHASE
+              g_objBugLabelDictionary.Add BG_TEST_PHASE, colBugFields.Item(intBugFieldNumber)
+          Case BG_ENVIRONMENT
+              g_objBugLabelDictionary.Add BG_ENVIRONMENT, colBugFields.Item(intBugFieldNumber)
+          Case BG_TEST_CASE_ID
+              g_objBugLabelDictionary.Add BG_TEST_CASE_ID, colBugFields.Item(intBugFieldNumber)
+          Case BG_REASON_FOR_REJECTING
+              g_objBugLabelDictionary.Add BG_REASON_FOR_REJECTING, colBugFields.Item(intBugFieldNumber)
+          Case BG_ROOT_CAUSE
+              g_objBugLabelDictionary.Add BG_ROOT_CAUSE, colBugFields.Item(intBugFieldNumber)
+          Case BG_TESTED_ON_DATE
+              g_objBugLabelDictionary.Add BG_TESTED_ON_DATE, colBugFields.Item(intBugFieldNumber)
+          Case BG_TESTED_BY
+              g_objBugLabelDictionary.Add BG_TESTED_BY, colBugFields.Item(intBugFieldNumber)
+          Case BG_FIXED_ON_DATE
+              g_objBugLabelDictionary.Add BG_FIXED_ON_DATE, colBugFields.Item(intBugFieldNumber)
+          Case BG_APPLICATION
+              g_objBugLabelDictionary.Add BG_APPLICATION, colBugFields.Item(intBugFieldNumber)
+          Case BG_FUNCTIONAL_AREA
+              g_objBugLabelDictionary.Add BG_FUNCTIONAL_AREA, colBugFields.Item(intBugFieldNumber)
+          Case BG_REFERENCE
+              g_objBugLabelDictionary.Add BG_REFERENCE, colBugFields.Item(intBugFieldNumber)
+          Case BG_SUB_PROJECT
+              g_objBugLabelDictionary.Add BG_SUB_PROJECT, colBugFields.Item(intBugFieldNumber)
+          Case BG_CR_REF
+              g_objBugLabelDictionary.Add BG_CR_REF, colBugFields.Item(intBugFieldNumber)
+          Case BG_OWNER
+               g_objBugLabelDictionary.Add BG_OWNER, colBugFields.Item(intBugFieldNumber)
+          Case BG_TESTED_IN_VERSION
+               g_objBugLabelDictionary.Add BG_TESTED_IN_VERSION, colBugFields.Item(intBugFieldNumber)
+          Case BG_FAILED_IN_VERSION
+               g_objBugLabelDictionary.Add BG_FAILED_IN_VERSION, colBugFields.Item(intBugFieldNumber)
+          Case BG_FAILED_ON_DATE
+               g_objBugLabelDictionary.Add BG_FAILED_ON_DATE, colBugFields.Item(intBugFieldNumber)
+          Case BG_FAILED_BY
+               g_objBugLabelDictionary.Add BG_FAILED_BY, colBugFields.Item(intBugFieldNumber)
+          Case BG_FAILED_COUNT
+               g_objBugLabelDictionary.Add BG_FAILED_COUNT, colBugFields.Item(intBugFieldNumber)
+          Case BG_BUILD_DATE
+               g_objBugLabelDictionary.Add BG_BUILD_DATE, colBugFields.Item(intBugFieldNumber)
+          Case BG_ESTIMATED_FIX_DATE
+               g_objBugLabelDictionary.Add BG_ESTIMATED_FIX_DATE, colBugFields.Item(intBugFieldNumber)
+          Case BG_MUREX_BINARY
+               g_objBugLabelDictionary.Add BG_MUREX_BINARY, colBugFields.Item(intBugFieldNumber)
+          Case BG_ESTIMATED_RESOLUTION
+               g_objBugLabelDictionary.Add BG_ESTIMATED_RESOLUTION, colBugFields.Item(intBugFieldNumber)
+      End Select
+ Next
+ On Error GoTo 0
+End Sub
+
+Function Bug_CanPost
+ On Error Resume Next
+    strDescription = Bug_Fields.Field("BG_DESCRIPTION").Value
+    If Len(strDescription) < 60 Then
+         MsgBox "Please enter sufficient detail in the description field!", vbExclamation, "Warning"
+         Bug_CanPost = False
+    Else
+         Bug_CanPost = DefaultRes
+    End If
+
+    strStatus = Bug_Fields.field("BG_STATUS").Value
+    If strStatus = "Reopen" Then
+      Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_REOPEN_COUNT)).IsReadOnly = False
+      Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_REOPEN_COUNT)).Value = Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_REOPEN_COUNT)).Value + 1
+      Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_REOPEN_COUNT)).IsReadOnly = True
+    End If
+    If strStatus = "Assigned" Then
+        If g_SendToMurex = "True" Then
+            rc = Bug_Fields.Field(GetFieldName("Owner","BUG")).Value
+          If Instr(1,rc,"- Issue") > 0 Or Instr(1, rc, "- Strategic") > 0 Then
+            g_SendToMurex = "False"
+                Exit Function
+            End If
+          rc = Bug_Fields.Field(GetFieldName("3rd Party Reference ID", "BUG")).Value
+            If rc = "" Then
+              Bug_Fields.Field(GetFieldName("3rd Party Reference ID", "BUG")).Value = "Awaiting Murex Case Id"
+            End If
+        End If
+    End If
+    rc = Bug_Fields.Field(GetFieldName("3rd Party Reference ID", "BUG")).Value
+    If rc <> "" Then
+      If rc = "Awaiting Murex Case Id" Then
+        g_SendToMurex = "True"
+      Else
+        If Len(rc) = 6 Then
+          g_SendToMurex = "True"
+        Else
+          g_SendToMurex = "False"
+        End If
+      End If
+    End If
+  On Error GoTo 0
+End Function
+
+Sub Clear_Dates
+ On Error Resume Next
+
+        Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FIXED_ON_DATE)).Value =  ""
+        Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_TESTED_ON_DATE)).Value =  ""
+        Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_BUILD_DATE)).Value =  ""
+        Bug_Fields.Field("BG_PLANNED_CLOSING_VER").Value  = ""
+        Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_TESTED_BY)).Value = ""
+        Bug_Fields.Field("BG_CLOSING_VERSION").Value = ""
+        Bug_Fields.Field("BG_ACTUAL_FIX_TIME").Value = ""
+        Bug_Fields(g_objBugLabelDictionary.Item(BG_ROOT_CAUSE)).Value = ""
+        Bug_Fields.Field("BG_CLOSING_DATE").Value = ""
+        Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_TESTED_IN_VERSION)).Value = ""
+        Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_ON_DATE)).Value = ""
+        Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_IN_VERSION)).Value = ""
+        Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_BY)).Value = ""
+
+On Error GoTo 0
+End Sub
+
+Sub Update_Dates
+  On Error Resume Next
+     Select Case Bug_Fields("BG_STATUS").Value
+
+            Case "Closed"
+            ' Auto-populate the Closing Date field.
+            Bug_Fields.Field("BG_CLOSING_DATE").Value = Date
+
+            Case "Tested"
+            ' Auto-populate the Tested By and Tested On Date fields.
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_TESTED_BY)).Value = User.UserName
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_TESTED_ON_DATE)).Value  = Date
+            Bug_Fields.Field("BG_RESPONSIBLE").Value = ""   'Clear Assigned to value
+
+            Case "Fixed"
+            ' Auto-populate the Fixed On Date field.
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FIXED_ON_DATE)).Value  = Date
+            Bug_Fields.Field("BG_RESPONSIBLE").Value = ""   'Clear Assigned to value
+
+            Case "Ready for Testing"
+            ' Auto-populate the Fixed On Date field.
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_BUILD_DATE)).Value  = Date
+            Bug_Fields.Field("BG_RESPONSIBLE").Value = ""   'Clear Assigned to value
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_TESTED_IN_VERSION)).Value = ""
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_TESTED_BY)).Value = ""
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_TESTED_ON_DATE)).Value  = ""
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_ON_DATE)).Value = ""
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_IN_VERSION)).Value = ""
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_BY)).Value = ""
+
+            Case "Reopen"
+            Bug_Fields.Field("BG_RESPONSIBLE").Value = ""   'Clear Assigned to value
+
+            Case "Failed Testing"
+            Bug_Fields.Field("BG_RESPONSIBLE").Value = ""   'Clear Assigned to value
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_BY)).Value = User.UserName
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_ON_DATE)).Value  = Date
+
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_COUNT)).IsReadOnly = False
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_COUNT)).Value = Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_COUNT)).Value + 1
+            Bug_Fields.Field(g_objBugLabelDictionary.Item(BG_FAILED_COUNT)).IsReadOnly = True
+
+            Case "Assigned"
+            Bug_Fields.Field("BG_RESPONSIBLE").Value = ""   'Clear Assigned to value
+
+     End Select
+ On Error GoTo 0
+End Sub
+
+Sub Bug_FieldChange(FieldName)
+ On Error Resume Next
+
+    If FieldName = "BG_STATUS" Then
+          Update_Dates
+    End If
+
+    ' See if the assigned to field is moving from or to a murex consultant
+    If FieldName = "BG_RESPONSIBLE" Then
+      rc = CheckUserGroup(Bug_Fields.Field("BG_RESPONSIBLE").Value)
+      If rc = "True" Then
+          g_SendToMurex = "True"
+      Else
+          g_SendToMurex = "False"
+      End If
+    End If
+
+    Setup_Functional_Area_Lists
+
+On Error GoTo 0
+End Sub
+
+Sub Bug_MoveTo
+
+ On Error Resume Next
+
+    Setup_Functional_Area_Lists
+
+ On Error GoTo 0
+
+End Sub
+
+Sub Setup_Functional_Area_Lists
+ On Error Resume Next
+
+    Select Case Bug_Fields(g_objBugLabelDictionary.Item(BG_APPLICATION)).Value
+        Case "Banking"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("Banking Functional Area")
+        Case "Blade Logic (Model Office)"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("Blade Logic Functional Area")
+        Case "Clearing GUI"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("Clearing GUI Functional Area")
+        Case "Curve Builder GUI"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("Curve Builder Functional Area")
+        Case "Curve Checker GUI"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("Curve Checker Functional Area")
+        Case "DMP"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("DMP Functional Area")
+        Case "ITD Deletions"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("ITD Deletions Functional Area")
+        Case "Margin Monitor GUI"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("Margin Monitor Functional Area")
+        Case "Markit Curve"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("Markit Curve Functional Area")
+        Case "Member Reporting"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("Member Reporting Functional Area")
+        Case "MIDAS"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("MIDAS Functional Area")
+        Case "Price Server"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("Price Server Functional Area")
+        Case "RMS"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("RMS Functional Area")
+        Case "SwapClear"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("SwapClear Functional Area")
+        Case "SWIFT"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("SWIFT Functional Area")
+        Case "Markit Wire"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("MarkitWire Functional Area")
+        Case "SwapClear Refresh (Murex)"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("SwapClear Refresh (Murex) Functional Area")
+        Case "SwapClear Refresh (LCH)"
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("SwapClear Refresh (LCH) Functional Area")
+        Case Else
+            Bug_Fields(g_objBugLabelDictionary.Item(BG_FUNCTIONAL_AREA)).List = Lists("Functional Area")
+    End Select
+
+ On Error GoTo 0
+End Sub
+
+Function Bug_FieldCanChange(FieldName, NewValue)
+  On Error Resume Next
+  ' See if the assigned to field is moving from or to a murex consultant
+  If FieldName = "BG_RESPONSIBLE" Then
+    rc = CheckUserGroup(NewValue)
+    If rc = "True" Then
+       g_SendToMurex = "True"
+    Else
+       g_SendToMurex = "False"
+    End If
+  End If
+  Bug_FieldCanChange = DefaultRes
+  On Error GoTo 0
+End Function
+
+Sub Bug_AfterPost
+  On Error Resume Next
+     If g_SendToMurex = "True" Then
+       SendDefect Bug_Fields.Field("BG_BUG_ID").Value, "customer-support@murex.com","portal-support@murex.com","Defect Assigned to Murex","LCH.Clearnet Quality Center Defect"
+     End If
+     If Bug_Fields.Field("BG_STATUS").Value = "New" Then
+       SendDefect Bug_Fields.Field("BG_BUG_ID").Value, "mark.osborne@lchclearnet.com","satish.yadav2@lchclearnet.com","New Critial or High Defect Raised.","Please review as soon as possible."
+     End If
+  On Error GoTo 0
+End Sub
+Function CheckUserGroup(strUserName)
+Dim objCustomization
+Dim objCustomizationUsers
+Dim objCustomizationUser
+
+    Set objCustomization = TDConnection.Customization
+    Set objCustomizationUsers = objCustomization.Users
+    Set objCustomizationUser = objCustomizationUsers.User(strUserName)
+    If objCustomizationUser.InGroup("LCHC_Murex_Consultant") = True Then
+        CheckUserGroup = "True"
+    Else
+        CheckUserGroup = "False"
+    End If
+
+    Set objCustomizationUser = Nothing
+    Set objCustomizationUsers = Nothing
+    Set objCustomization = Nothing
+End Function
+Sub SendDefect (iObjectId, strTo, strCc, strSubject, strComment)
+
+    On Error Resume Next
+    Dim objBugFactory, objBug
+    Set objBugFactory = TDConnection.BugFactory
+    Set objBug = objBugFactory.Item(iObjectId)
+
+    objBug.Mail strTo, strCc, 1, strSubject, strComment
+
+    Set objBug = Nothing
+    Set objBugFactory = Nothing
+
+    On Error GoTo 0
+
+End Sub

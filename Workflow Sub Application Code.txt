@@ -1,0 +1,502 @@
+'-------------------------------------------------------------------------------
+Public Function ViewRequirementScores()
+Dim intFormHeight
+Dim strQG
+
+    '	Set up the QG variable
+    Select Case strChosenQG
+      	Case "QG:0"
+        	strQG = "0"
+        Case "QG:1"
+        	strQG = "1"
+        Case "QG:2"
+        	strQG = "2"
+        Case "QG:3"
+        	strQG = "3"
+        Case "QG:4"
+        	strQG = "4"
+        Case "QG:5"
+        	strQG = "5"
+    End Select
+
+	'	See if the current project exists
+    rc = CheckProjectExists()
+    If rc = "False" Then
+    	'	Send a message and redisplay the main screen
+        MsgBox "The selected project [" & strChosenProject & "] does not have an entry in the database." _
+        	& vbCrLf & "Please use the 'Add/Amend' button to set up the QC scores.", vbSystemModal + vbOKOnly
+        Exit Function
+    End If
+
+    '	Run the graphing function
+    CreateGraph
+
+    '	Create the window depending on gate level
+    strGenericDocument = "<html><head>" _
+      & "<style type='text/css'>" _
+      & "body {background-color:buttonface;font-size:8pt;font-family:Arial,Verdana}" _
+      & "p {background-color:buttonface;font-size:8pt;font-family:Arial,Verdana}" _
+      & "textarea {font-size:8pt;font-family:Arial,Verdana}" _
+      & "td {background-color:buttonface;font-size:8pt;font-family:Arial,Verdana}" _
+      & "td.purple {background-color:#330066;color:white;font-weight:bold;font-size:8pt;font-family:Arial,Verdana}" _
+      & "td.green {background-color:#CCFF33;font-size:8pt;font-family:Arial,Verdana}" _
+      & "td.orangered {background-color:#FF5900;color:white;font-weight:bold;font-size:8pt;font-family:Arial,Verdana}" _
+      & "</style>" _
+	  & "<title>Quality Gate " & strQG & " - View Scores</title></head>" _
+      & "<body>" _
+      & "<table id='GenericTable' align='left' width='100%' cellpadding='1' cellspacing='1' Border=0>" _
+      & "<tr><td><table align='left' width='100%' cellpadding='1' cellspacing='1' Border=0>" _
+      & "<td width='70%' class=purple noWrap>&nbsp;" & strChosenProject & " - Quality Gate 0 - View</td>" _
+      & "<td width='15%' class=green></td>" _
+      & "<td width='15%' class=orangered align='center'>HELP</td>" _
+      & "</td></tr></table>" _
+      & "<tr><td><fieldset>" _
+      & "<table style='table-layout:fixed;font-size:10px;border=0;word-wrap:break-word;cellspacing=1;text-align:center;width=100%'>" _
+ 	  & "<tr><th colspan=2>" & strChosenProject & "</th></tr>" _
+ 	  & "<tr><th colspan=2>Quality Gate " & strQG & " - Requirements Score Graph</th></tr>" _
+      & "<tr><td colspan=2>" _
+	  & "<img src='V:\general\testing\general_documentation\weekly metrics dashboards\templates & guildelines\MGB Trial\QG\Mychart.gif' />" _
+	  & "</td></tr></fieldset>" _
+	  & "<tr><td colspan=2 align=right><fieldset>" _
+	  & "<input id='Back' type='button' value='Back' style='width:50px;font-size:8pt'>" _
+      & "</td></tr></table></fieldset>" _
+      & "</td></tr></table>" _
+      & "</body></html>"
+
+      ' Create an instance of the InternetExplorer Application object.
+  Set objGenericWindow = CreateObject("InternetExplorer.Application")
+
+  With objGenericWindow
+
+    ' The .MenuBar, .AddressBar, .Toolbar and .StatusBar attributes are set to
+    ' false when .FullScreen is set to true.
+    .MenuBar = False
+    .AddressBar = False
+    .Toolbar = False
+    .StatusBar = False
+    .FullScreen = False
+    .Resizable = False
+    .Navigate("about:blank")
+
+  End With
+
+  While objGenericWindow.Busy
+  Wend
+
+  Set objGenericDocument = objGenericWindow.Document
+
+  With objGenericDocument
+      .WriteLn(strGenericDocument)
+
+      With .Body
+          .scroll="no"
+          .style.borderStyle = "outset"
+          .style.borderWidth = "2px"
+      End With
+  End With
+
+  Set objGenericTable = objGenericDocument.All.GenericTable
+
+  intFormHeight = 200 + objGenericTable.getAttribute("clientHeight")
+
+  With objGenericDocument
+      With .ParentWindow
+          '.Resizeto FORM_WIDTH, intFormHeight
+          .Moveto (.Screen.Width/2) - (FORM_WIDTH/2), (.Screen.Height/2) - (intFormHeight/2)
+      End With
+  End With
+
+  On Error Resume Next
+
+  ' Objects
+  Set objGenericCancelButton = objGenericDocument.All.Back
+
+  ' Event handlers
+  Set objGenericSubmitButton.onClick = GetRef("GenericSubmitButton_OnClick")
+  Set objGenericCancelButton.onClick = GetRef("GenericCancelButton_OnClick")
+
+  '	Set global window name
+  strGenericWindow = "View Level 0"
+
+  '	Hide main window
+  objMainWindow.Visible = False
+
+  '	Make window visible
+  objGenericWindow.Visible = True
+
+End Function
+'-------------------------------------------------------------------------------
+Public Function UpdateRequirementScores()
+Dim intFormHeight
+Dim strQG
+Dim strReqSpec, strReqTest, strReqRevi, strReqSign
+
+    '	Set up the QG variable
+    Select Case strChosenQG
+      	Case "QG:0"
+        	strQG = "0"
+        Case "QG:1"
+        	strQG = "1"
+        Case "QG:2"
+        	strQG = "2"
+        Case "QG:3"
+        	strQG = "3"
+        Case "QG:4"
+        	strQG = "4"
+        Case "QG:5"
+        	strQG = "5"
+    End Select
+
+    '	Get the current scores if the project already exists
+    rc = CheckProjectExists()
+    If rc = "True" Then
+    	strReqSpec = GetScore("ReqSpecific")
+        strReqTest = GetScore("ReqTestable")
+        strReqRevi = GetScore("ReqReviewed")
+        strReqSign = GetScore("ReqSignOff")
+    End If
+	'	Create the window depending on gate level
+	strGenericDocument = "<html><head>" _
+	  & "<SCRIPT LANGUAGE='text/javascript'>" _
+	  & "var oPopup = window.createPopup();" _
+	  & "function openPopup()" _
+	  & "{" _
+      & "var oPopBody = oPopup.document.body;" _
+      & "oPopBody.innerHTML = " & chr(34) & "<div style='position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #cccccc; border: 1px solid black; border-top: 1px solid white; border-left: 1px solid white; padding: 10px; font: normal 10pt tahoma; padding-left: 18px'>Blah De Blah</div>" & chr(34) & ";" _
+      & "oPopup.show(650, 300, 100, 50, document.body);" _
+	  & "}" _
+	  & "</SCRIPT>" _
+      & "<style type='text/css'>" _
+      & "body {background-color:buttonface;font-size:8pt;font-family:Arial,Verdana}" _
+      & "p {background-color:buttonface;font-size:8pt;font-family:Arial,Verdana}" _
+      & "textarea {font-size:8pt;font-family:Arial,Verdana}" _
+      & "td {background-color:buttonface;font-size:8pt;font-family:Arial,Verdana}" _
+      & "td.purple {background-color:#330066;color:white;font-weight:bold;font-size:8pt;font-family:Arial,Verdana}" _
+      & "td.green {background-color:#CCFF33;font-size:8pt;font-family:Arial,Verdana}" _
+      & "td.orangered {background-color:#FF5900;color:white;font-weight:bold;font-size:8pt;font-family:Arial,Verdana}" _
+      & "</style>" _
+	  & "<title>Quality Gate " & strQG & " - Update Scores</title></head>" _
+      & "<body>" _
+      & "<table id='GenericTable' align='left' width='100%' cellpadding='1' cellspacing='1' Border=0>" _
+      & "<tr><td><table align='left' width='100%' cellpadding='1' cellspacing='1' Border=0>" _
+      & "<td width='70%' class=purple noWrap>&nbsp;Quality Gate 0 - Update</td>" _
+      & "<td width='15%' class=green></td>" _
+      & "<td width='15%' class=orangered align='center'>HELP</td>" _
+      & "<tr></table></td></tr>" _
+      & "<tr><td><fieldset>" _
+      & "<table style='table-layout:fixed;font-size:10px;border=0;word-wrap:break-word;cellspacing=1;text-align:center;width=100%'>" _
+ 	  & "<tr><th colspan=2>" & strChosenProject & "</th></tr>" _
+ 	  & "<tr><th colspan=2>Quality Gate " & strQG & " - Requirements Attributes</th></tr>" _
+ 	  & "<tr>" _
+ 	  & "<td>Requirement Specific</td>" _
+      & "<td align=left><select name='ReqSpecific' style='background-color:buttonface;width:275px;font-size:8pt;size:1'>"
+      If strReqSpec = "" Then
+      	strGenericDocument = strGenericDocument & "<option value='0' selected='selected'>0 - Ambiguous/Not Specific</option>" _
+ 	  	& "<option value='2'>2 - Non Specific aspects</option>" _
+ 	  	& "<option value='4'>4 - Specific and acceptable</option>"
+      Else
+      	Select Case strReqSpec
+        	Case "0"
+        	    strGenericDocument = strGenericDocument & "<option value='0' selected='selected'>0 - Ambiguous/Not Specific</option>" _
+	            & "<option value='2'>2 - Non Specific aspects</option>" _
+	            & "<option value='4'>4 - Specific and acceptable</option>"
+            Case "2"
+            	strGenericDocument = strGenericDocument & "<option value='0'>0 - Ambiguous/Not Specific</option>" _
+	            & "<option value='2' selected='selected'>2 - Non Specific aspects</option>" _
+	            & "<option value='4'>4 - Specific and acceptable</option>"
+            Case "4"
+            	strGenericDocument = strGenericDocument & "<option value='0'>0 - Ambiguous/Not Specific</option>" _
+	            & "<option value='2'>2 - Non Specific aspects</option>" _
+	            & "<option value='4' selected='selected'>4 - Specific and acceptable</option>"
+        End Select
+      End If
+ 	  strGenericDocument = strGenericDocument & "</select></td></tr>" _
+ 	  & "<tr><td>Requirement Testability</td>" _
+ 	  & "<td align=left><select name='ReqTestability' style='background-color:buttonface;width:275px;font-size:8pt;size:1'>"
+      If strReqTest = "" Then
+ 	  	strGenericDocument = strGenericDocument & "<option value='0' selected='selected'>0 - Not testable</option>" _
+ 	  	& "<option value='2'>2 - Partially testable</option>" _
+ 	  	& "<option value='4'>4 - Fully testable</option>"
+      Else
+      	Select Case strReqTest
+        	Case "0"
+                strGenericDocument = strGenericDocument & "<option value='0' selected='selected'>0 - Not testable</option>" _
+ 	  			& "<option value='2'>2 - Partially testable</option>" _
+ 	  			& "<option value='4'>4 - Fully testable</option>"
+            Case "2"
+                strGenericDocument = strGenericDocument & "<option value='0'>0 - Not testable</option>" _
+ 	  			& "<option value='2' selected='selected'>2 - Partially testable</option>" _
+ 	  			& "<option value='4'>4 - Fully testable</option>"
+            Case "4"
+                strGenericDocument = strGenericDocument & "<option value='0'>0 - Not testable</option>" _
+ 	  			& "<option value='2'>2 - Partially testable</option>" _
+ 	  			& "<option value='4' selected='selected'>4 - Fully testable</option>"
+        End Select
+      End If
+ 	  strGenericDocument = strGenericDocument & "</select></td></tr>" _
+ 	  & "<tr><td bgcolor='#ECFDEC'>Requirement Reviewed</td>" _
+ 	  & "<td align=left><select name='ReqReview' style='background-color:buttonface;width:275px;font-size:8pt;size:1'>"
+      If strReqRevi = "" Then
+      	strGenericDocument = strGenericDocument & "<option value='0' selected='selected'>0 - Not reviewed</option>" _
+ 	  	& "<option value='1'>1 - Review in progress</option>" _
+ 	  	& "<option value='2'>2 - Reviewed with outstanding issues</option>" _
+ 	  	& "<option value='4'>4 - Reviewed and accepted</option>"
+      Else
+      	Select Case strReqRevi
+        	Case "0"
+                strGenericDocument = strGenericDocument & "<option value='0' selected='selected'>0 - Not reviewed</option>" _
+ 	  			& "<option value='1'>1 - Review in progress</option>" _
+ 	  			& "<option value='2'>2 - Reviewed with outstanding issues</option>" _
+ 	  			& "<option value='4'>4 - Reviewed and accepted</option>"
+            Case "1"
+                strGenericDocument = strGenericDocument & "<option value='0'>0 - Not reviewed</option>" _
+ 	  			& "<option value='1' selected='selected'>1 - Review in progress</option>" _
+ 	  			& "<option value='2'>2 - Reviewed with outstanding issues</option>" _
+ 	  			& "<option value='4'>4 - Reviewed and accepted</option>"
+            Case "2"
+                strGenericDocument = strGenericDocument & "<option value='0'>0 - Not reviewed</option>" _
+ 	  			& "<option value='1'>1 - Review in progress</option>" _
+ 	  			& "<option value='2' selected='selected'>2 - Reviewed with outstanding issues</option>" _
+ 	  			& "<option value='4'>4 - Reviewed and accepted</option>"
+            Case "4"
+                strGenericDocument = strGenericDocument & "<option value='0'>0 - Not reviewed</option>" _
+ 	  			& "<option value='1'>1 - Review in progress</option>" _
+ 	  			& "<option value='2'>2 - Reviewed with outstanding issues</option>" _
+ 	  			& "<option value='4' selected='selected'>4 - Reviewed and accepted</option>"
+        End Select
+      End If
+ 	  strGenericDocument = strGenericDocument & "</select></td></tr>" _
+ 	  & "<tr><td bgcolor='#ECFDEC'>Requirement Sign Off</td>" _
+ 	  & "<td align=left><select name='ReqSignOff' style='background-color:buttonface;width:275px;font-size:8pt;size:1'>"
+      If strReqSign = "" Then
+        strGenericDocument = strGenericDocument & "<option value='0' selected='selected'>0 - No sign off</option>" _
+ 	  	& "<option value='1'>1 - Sign off in progress</option>" _
+ 	  	& "<option value='2'>2 - Signed off with outstanding issues</option>" _
+ 	  	& "<option value='4'>4 - Fully signed off</option>"
+      Else
+      	Select Case strReqSign
+        	Case "0"
+                strGenericDocument = strGenericDocument & "<option value='0' selected='selected'>0 - No sign off</option>" _
+ 	  			& "<option value='1'>1 - Sign off in progress</option>" _
+ 	  			& "<option value='2'>2 - Signed off with outstanding issues</option>" _
+ 	  			& "<option value='4'>4 - Fully signed off</option>"
+            Case "1"
+                strGenericDocument = strGenericDocument & "<option value='0'>0 - No sign off</option>" _
+ 	  			& "<option value='1' selected='selected'>1 - Sign off in progress</option>" _
+ 	  			& "<option value='2'>2 - Signed off with outstanding issues</option>" _
+ 	  			& "<option value='4'>4 - Fully signed off</option>"
+            Case "2"
+                strGenericDocument = strGenericDocument & "<option value='0'>0 - No sign off</option>" _
+ 	  			& "<option value='1'>1 - Sign off in progress</option>" _
+ 	  			& "<option value='2' selected='selected'>2 - Signed off with outstanding issues</option>" _
+ 	  			& "<option value='4'>4 - Fully signed off</option>"
+            Case "4"
+                strGenericDocument = strGenericDocument & "<option value='0'>0 - No sign off</option>" _
+ 	  			& "<option value='1'>1 - Sign off in progress</option>" _
+ 	  			& "<option value='2'>2 - Signed off with outstanding issues</option>" _
+ 	  			& "<option value='4' selected='selected'>4 - Fully signed off</option>"
+        End Select
+      End If
+ 	  strGenericDocument = strGenericDocument & "</select></td></tr>" _
+ 	  & "<tr><td colspan=2 align=right>" _
+      & "<input id='Update' type='button' value='Update' style='width:50px;font-size:8pt' onclick='openPopup();'>" _
+ 	  & "<input id='Cancel' type='button' value='Cancel' style='width:50px;font-size:8pt'>" _
+ 	  & "</td></tr></table></fieldset>" _
+      & "</td></tr>" _
+      & "</table>" _
+      & "</body></html>"
+
+      ' Create an instance of the InternetExplorer Application object.
+  Set objGenericWindow = CreateObject("InternetExplorer.Application")
+
+  With objGenericWindow
+
+    ' The .MenuBar, .AddressBar, .Toolbar and .StatusBar attributes are set to
+    ' false when .FullScreen is set to true.
+    .MenuBar = False
+    .AddressBar = False
+    .Toolbar = False
+    .StatusBar = False
+    .FullScreen = False
+    .Resizable = False
+    .Navigate("about:blank")
+
+  End With
+
+  While objGenericWindow.Busy
+  Wend
+
+  Set objGenericDocument = objGenericWindow.Document
+
+  With objGenericDocument
+      .WriteLn(strGenericDocument)
+
+      With .Body
+          .scroll="no"
+          .style.borderStyle = "outset"
+          .style.borderWidth = "2px"
+      End With
+  End With
+
+  Set objGenericTable = objGenericDocument.All.GenericTable
+
+  intFormHeight = 100 + objGenericTable.getAttribute("clientHeight")
+
+  With objGenericDocument
+      With .ParentWindow
+          .Resizeto FORM_WIDTH, intFormHeight
+          .Moveto (.Screen.Width/2) - (FORM_WIDTH/2), (.Screen.Height/2) - (intFormHeight/2)
+      End With
+  End With
+
+  On Error Resume Next
+
+  ' Objects
+  Set objGenericSubmitButton = objGenericDocument.All.Update
+  Set objGenericCancelButton = objGenericDocument.All.Cancel
+  Set objGenericReqSpecificList = objGenericDocument.All.ReqSpecific
+  Set objGenericReqTestabilityList = objGenericDocument.All.ReqTestability
+  Set objGenericReqReviewList = objGenericDocument.All.ReqReview
+  Set objGenericReqSignOffList = objGenericDocument.All.ReqSignOff
+
+  ' Event handlers
+  Set objGenericSubmitButton.onClick = GetRef("GenericSubmitButton_OnClick")
+  Set objGenericCancelButton.onClick = GetRef("GenericCancelButton_OnClick")
+
+  '	Set global window name
+  strGenericWindow = "Update Level 0"
+
+  ' Make main window hidden
+  objMainWindow.Visible = False
+
+  '	Make window visible
+  objGenericWindow.Visible = True
+
+End Function
+'-------------------------------------------------------------------------------
+Public Function Req_Quality_Gate()
+Dim objGenericTable
+Dim intFormHeight
+
+	' Get the project codes from the projects list into an array
+    myArr = GetComboValues("All Projects")
+
+  	strGenericDocument = "<html><head>" _
+      & "<style type='text/css'>" _
+      & "body {background-color:buttonface;font-size:8pt;font-family:Arial,Verdana}" _
+      & "p {background-color:buttonface;font-size:8pt;font-family:Arial,Verdana}" _
+      & "textarea {font-size:8pt;font-family:Arial,Verdana}" _
+      & "td {background-color:buttonface;font-size:8pt;font-family:Arial,Verdana}" _
+      & "td.purple {background-color:#330066;color:white;font-weight:bold;font-size:8pt;font-family:Arial,Verdana}" _
+      & "td.green {background-color:#CCFF33;font-size:8pt;font-family:Arial,Verdana}" _
+      & "td.orangered {background-color:#FF5900;color:white;font-weight:bold;font-size:8pt;font-family:Arial,Verdana}" _
+      & "</style>" _
+      & "<title>Testing Quality Gate Utility</title></head>" _
+      & "<body>" _
+      & "<table id='GenericTable' align='left' width='100%' cellpadding='1' cellspacing='1' Border=0>" _
+      & "<tr><td><table align='left' width='100%' cellpadding='1' cellspacing='1' Border=0>" _
+      & "<td width='70%' class=purple noWrap>&nbsp; Test Quality Gate Selection</td>" _
+      & "<td width='15%' class=green></td>" _
+      & "<td width='15%' class=orangered align='center'>HELP</td>" _
+      & "<tr></table></td></tr>" _
+      & "<tr><td><fieldset>" _
+      & "<table align='left' width='100%' cellpadding='1' cellspacing='1' Border=0>" _
+      & "<tr>" _
+      & "<td width='40%' style='color:black'>Select your project from the list:</td>" _
+      & "<td width='60%'><select id='Projects' size=1 name='Projects' style='background-color:buttonface;width:275px;font-size:8pt' enabled isContentEditable=true>" _
+      & "<option value='Please Select'>Please Select</option>"
+      For Each Ele in myArr
+      	strGenericDocument = strGenericDocument & "<option value='" & Ele & "'>" & Ele & "</option>"
+      Next
+      strGenericDocument = strGenericDocument & "</select></td>" _
+      & "</tr>" _
+      & "</table>" _
+      & "</fieldset></td></tr>" _
+      & "<tr><td><fieldset>" _
+      & "<table align='left' width='100%' cellpadding='1' cellspacing='1' Border=0>" _
+      & "<tr>" _
+      & "<td width='25%' style='color:black'>View or Add/Amend:</td>" _
+      & "<td width='10%'><input type=radio id='View' name='ViewAmend' checked>View</td>" _
+      & "<td width='10%'><input type=radio id='Amend' name='ViewAmend'>Add/Amend</td>" _
+      & "</tr></table></fieldset></tr></td>" _
+      & "<tr><td><fieldset>" _
+      & "<table align='left' width='100%' cellpadding='1' cellspacing='1' Border=0>" _
+      & "<tr>" _
+      & "<td width='40%' style='color:black'>Select the Quality Gate you would like to view/amend:</td>" _
+      & "<td> <select id='QG_Level' size=1 name='QG_Level' style='background-color:buttonface;width:275px;font-size:8pt' enabled>" _
+      & "<option value='QG:0'>QG:0</option><option value='QG:1'>QG:1</option><option value='QG:2'>QG:2</option><option value='QG:3'>QG:3</option><option value='QG:4'>QG:4</option><option value='QG:5'>QG:5</option>" _
+      & "</select></td>" _
+      & "<td align='right'>" _
+      & "<input id='Submit' type='button' value='Submit' style='width:50px;font-size:8pt'>" _
+      & "<input id='Cancel' type='button' value='Cancel' style='width:50px;font-size:8pt'>" _
+      & "</td>" _
+      & "</tr>" _
+      & "</table>" _
+      & "</fieldset></td></tr>" _
+      & "</table>" _
+      & "</body></html>"
+
+  ' Create an instance of the InternetExplorer Application object.
+  Set objMainWindow = CreateObject("InternetExplorer.Application")
+
+  With objMainWindow
+
+    ' The .MenuBar, .AddressBar, .Toolbar and .StatusBar attributes are set to
+    ' false when .FullScreen is set to true.
+    .MenuBar = False
+    .AddressBar = False
+    .Toolbar = False
+    .StatusBar = False
+    .FullScreen = False
+    .Resizable = False
+    .Navigate("about:blank")
+
+  End With
+
+  While objMainWindow.Busy
+  Wend
+
+  Set objGenericDocument = objMainWindow.Document
+
+  With objGenericDocument
+      .WriteLn(strGenericDocument)
+
+      With .Body
+          .scroll="no"
+          .style.borderStyle = "outset"
+          .style.borderWidth = "2px"
+      End With
+  End With
+
+  Set objGenericTable = objGenericDocument.All.GenericTable
+
+  intFormHeight = 100 + objGenericTable.getAttribute("clientHeight")
+
+  With objGenericDocument
+      With .ParentWindow
+          .Resizeto FORM_WIDTH, intFormHeight
+          .Moveto (.Screen.Width/2) - (FORM_WIDTH/2), (.Screen.Height/2) - (intFormHeight/2)
+      End With
+  End With
+
+  On Error Resume Next
+
+  ' Objects
+  Set objMainSubmitButton = objGenericDocument.All.Submit
+  Set objMainCancelButton = objGenericDocument.All.Cancel
+  Set objMainProjectList = objGenericDocument.All.Projects
+  Set objMainQG_LevelList = objGenericDocument.All.QG_Level
+  Set objMainAmendRadio = objGenericDocument.All.Amend
+  Set objMainViewRadio = objGenericDocument.All.View
+
+  ' Event handlers
+  Set objMainWindow.Document.Body.onbeforeunload = GetRef("MainWindow_OnQuit")
+  Set objMainSubmitButton.onClick = GetRef("MainSubmitButton_OnClick")
+  Set objMainCancelButton.onClick = GetRef("MainCancelButton_OnClick")
+  Set objMainProjectList.onChange = GetRef("MainProjectList_OnChange")
+
+  objMainWindow.Visible = True
+
+  ReFocusWindow "Testing Quality Gate Utility"
+
+End Function

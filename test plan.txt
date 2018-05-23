@@ -1,0 +1,517 @@
+Function Test_CanPost
+  On Error Resume Next
+
+  Test_CanPost = DefaultRes
+  On Error GoTo 0
+End Function
+
+Sub MoveToSubject(Subject)
+  On Error Resume Next
+
+  Set g_objSubject = Subject
+  SetupTestFields
+
+  On Error GoTo 0
+End Sub
+
+Sub Test_New
+  On Error Resume Next
+
+  ' Add the test name to the dictionary of test names.
+  g_objTestNameDictionary.Add Left(Test_Fields.Field("TS_NAME").Value,12), Test_Fields.Field("TS_NAME").Value
+
+  ' Default the value of the Active field.
+  Test_Fields.Field(g_objTestPlanLabelDictionary.Item(TS_ACTIVE)).Value = "Y"
+
+  '	Set up the template for the description field
+  Test_Fields.Field("TS_DESCRIPTION").Value = "<html><body><b><u>Description</u></b><br><i>&lt;Describe a brief summary of the test&gt;</i>" & _
+  "<br><br><br><b><u>Input Data</u></b><br><i>&lt;Input data that should be fed into the test&gt;</i><br><br><br><b><u>Assumptions</u></b><br><i>&lt;if any&gt;</i><br><br><br>" & _
+  "<b><u>Environment</u></b><br><i>&lt;Environment used to run the test&gt;</i></body></html>"
+
+  SetupTestFields
+
+  On Error GoTo 0
+End Sub
+
+Sub Test_MoveTo
+  On Error Resume Next
+
+  SetupTestFields
+
+  On Error GoTo 0
+End Sub
+
+Function Test_FieldCanChange(FieldName, NewValue)
+  Dim blnMatch
+  Dim objRegExp
+
+  On Error Resume Next
+
+  Select Case FieldName
+    Case "TS_NAME"
+      ' Check the naming convention if the test is not a template test.
+      Set g_objSubject = Test_Fields.Field("TS_SUBJECT").Value
+      If Instr(g_objSubject.Path, "00. Templates") = 0 Then
+        ' Check that the mandatory details of the test name are unique.
+        If Not Left(NewValue,12) = Left(Test_Fields.Field("TS_NAME").Value,12) And Not Test_IsUniqueName(NewValue) Then
+          MsgBox "The test name specified is not unique to the project!", vbExclamation, "Warning"
+          Test_FieldCanChange = False
+        Else
+          Set objRegExp = New RegExp
+
+          With objRegExp
+            .Pattern = "^[A-Z0-9]{3}_[A-Z0-9]{3}_[0-9]{4}"
+            .IgnoreCase = False
+            .Global = True
+          End With
+
+          blnMatch = objRegExp.Test(Left(NewValue,12))
+
+          Set objRegExp = Nothing
+
+          If Not blnMatch Then
+            MsgBox "The new test name does not match the required naming convention of AAA_BBB_0001[_Optional Textual Description], where: " & vbCrLf _
+              & vbCrLf _
+              & "AAA, 111, A11 is the application name" _
+              & vbCrLf _
+              & "BBB, 222, B22 is the functional area to which the test relates" _
+              & vbCrLf _
+              & "0001 is the sequential number of the test!", vbExclamation, "Warning"
+            Test_FieldCanChange = False
+          ' Check that the dividing character is an underscore.
+          ElseIf Len(NewValue) > 12 And Mid(NewValue, 13, 1) <> "_" Then
+            MsgBox "The character following the mandatory details of the test name must be an underscore!", vbExclamation, "Warning"
+            Test_FieldCanChange = False
+          ' Check that the length of the test name is within the limits.
+          ElseIf Len(NewValue) > 73 Then
+            MsgBox "The optional description cannot be greater than 60 characters!", vbExclamation, "Warning"
+            Test_FieldCanChange = False
+          Else
+            ' Remove the old key from the test name dictionary.
+            g_objTestNameDictionary.Remove Left(Test_Fields.Field("TS_NAME").Value,12)
+            ' Add the new key to the test name dictionary.
+            g_objTestNameDictionary.Add Left(NewValue,12), NewValue
+            Test_FieldCanChange = True
+          End If
+        End If
+      End If
+    Case "TS_DESCRIPTION"
+      ' Display an error message if the detail is insufficient.
+      If Len(NewValue) < 60 Then
+        MsgBox "Please enter sufficient detail in the test condition field!", vbExclamation, "Warning"
+      End If
+
+      Test_FieldCanChange = DefaultRes
+    Case Else
+      Test_FieldCanChange = DefaultRes
+  End Select
+
+    if FieldName = Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)) Then
+       Setup_Test_FunctArea
+    End if
+
+  On Error GoTo 0
+End Function
+
+Sub Test_FieldChange(FieldName)
+  On Error Resume Next
+
+  if FieldName = Test_Fields(g_objTestPlanLabelDictionary.Item(TS_APPLICATION))then
+
+     Setup_Test_FunctArea
+  End if
+
+  On Error GoTo 0
+End Sub
+
+Function Test_CanDelete(Entity,IsTest)
+  On Error Resume Next
+
+  ' Remove the key from the test name dictionary.
+  g_objTestNameDictionary.Remove Left(Test_Fields.Field("TS_NAME").Value,12)
+
+  Test_CanDelete = DefaultRes
+  On Error GoTo 0
+End Function
+
+Sub Test_AfterPost
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Sub DesignStep_New
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Sub DesignStep_MoveTo
+  On Error Resume Next
+
+  Setup_Test_FunctArea
+
+  On Error GoTo 0
+End Sub
+
+Function DesignStep_FieldCanChange(FieldName, NewValue)
+  On Error Resume Next
+
+  DesignStep_FieldCanChange = DefaultRes
+  On Error GoTo 0
+End Function
+
+Sub DesignStep_FieldChange(FieldName)
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Sub Test_AssignLabels
+  Dim colTestFields
+  Dim intTestFieldNumber
+
+  On Error Resume Next
+
+  Set g_objTestPlanLabelDictionary = CreateObject("Scripting.Dictionary")
+
+  Set colTestFields = TDConnection.TestFactory.Fields
+
+  For intTestFieldNumber = 1 To colTestFields.Count
+    Select Case colTestFields.Item(intTestFieldNumber).Property.UserLabel
+      Case TS_PRIORITY
+        g_objTestPlanLabelDictionary.Add TS_PRIORITY, colTestFields.Item(intTestFieldNumber)
+      Case TS_ACTIVE
+        g_objTestPlanLabelDictionary.Add TS_ACTIVE, colTestFields.Item(intTestFieldNumber)
+      Case TS_DESIGN_TIME
+        g_objTestPlanLabelDictionary.Add TS_DESIGN_TIME, colTestFields.Item(intTestFieldNumber)
+      Case TS_REVIEWED_BY
+        g_objTestPlanLabelDictionary.Add TS_REVIEWED_BY, colTestFields.Item(intTestFieldNumber)
+      Case TS_REVIEWED_ON_DATE
+        g_objTestPlanLabelDictionary.Add TS_REVIEWED_ON_DATE, colTestFields.Item(intTestFieldNumber)
+      Case TS_COMMENTS_PENDING
+        g_objTestPlanLabelDictionary.Add TS_COMMENTS_PENDING, colTestFields.Item(intTestFieldNumber)
+      Case TS_CREATED_FOR_PROJECT
+        g_objTestPlanLabelDictionary.Add TS_CREATED_FOR_PROJECT, colTestFields.Item(intTestFieldNumber)
+      Case TS_APPLICATION
+        g_objTestPlanLabelDictionary.Add TS_APPLICATION, colTestFields.Item(intTestFieldNumber)
+      Case TS_FUNCTIONAL_AREA
+        g_objTestPlanLabelDictionary.Add TS_FUNCTIONAL_AREA, colTestFields.Item(intTestFieldNumber)
+    End Select
+  Next
+
+  On Error GoTo 0
+End Sub
+
+Function Test_IsUniqueName(strTestName)
+  Dim blnUniqueName
+
+  On Error Resume Next
+
+  blnUniqueName = True
+
+  If g_objTestNameDictionary.Exists(Left(strTestName,12)) Then
+    blnUniqueName = False
+  End If
+
+  Test_IsUniqueName = blnUniqueName
+
+  On Error GoTo 0
+End Function
+
+Sub Test_GetTestNames()
+  Dim objTestFactory
+  Dim colTests
+
+  On Error Resume Next
+
+  Set g_objTestNameDictionary = CreateObject("Scripting.Dictionary")
+
+  Set objTestFactory = TDConnection.TestFactory
+
+  Set colTests = objTestFactory.NewList("")
+
+  For Each objTest In colTests
+    If Not g_objTestNameDictionary.Exists(objTest.Name,12) Then
+      g_objTestNameDictionary.Add Left(objTest.Name,12), objTest.Name
+    End If
+  Next
+
+  Set objTestFactory = Nothing
+
+  On Error GoTo 0
+End Sub
+
+Sub Setup_Test_FunctArea
+ On Error Resume Next
+
+    Select Case Test_Fields(g_objTestPlanLabelDictionary.Item(TS_APPLICATION)).Value
+        Case "Banking"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("Banking Functional Area")
+        Case "Blade Logic (Model Office)"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("Blade Logic Functional Area")
+        Case "Clearing GUI"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("Clearing GUI Functional Area")
+        Case "Curve Builder GUI"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("Curve Builder Functional Area")
+        Case "Curve Checker GUI"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("Curve Checker Functional Area")
+        Case "DMP"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("DMP Functional Area")
+        Case "ITD Deletions"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("ITD Deletions Functional Area")
+        Case "Margin Monitor GUI"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("Margin Monitor Functional Area")
+        Case "Markit Curve"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("Markit Curve Functional Area")
+        Case "Member Reporting"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("Member Reporting Functional Area")
+        Case "MIDAS"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("MIDAS Functional Area")
+        Case "Price Server"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("Price Server Functional Area")
+        Case "RMS"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("RMS Functional Area")
+        Case "SwapClear"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("SwapClear Functional Area")
+        Case "SWIFT"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("SWIFT Functional Area")
+        Case "Markit Wire"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("MarkitWire Functional Area")
+        Case "SwapClear Refresh (Murex)"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("SwapClear Refresh (Murex) Functional Area")
+        Case "SwapClear Refresh (LCH)"
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("SwapClear Refresh (LCH) Functional Area")
+        Case Else
+            Test_Fields(g_objTestPlanLabelDictionary.Item(TS_FUNCTIONAL_AREA)).List = Lists("Functional Area")
+    End Select
+
+ On Error GoTo 0
+End Sub
+
+Sub SetupTestFields
+
+  On Error Resume Next
+
+  Test_Fields.Field(g_objTestPlanLabelDictionary.Item (TS_PRIORITY)).ViewOrder = 7
+  Test_Fields.Field(g_objTestPlanLabelDictionary.Item (TS_ACTIVE)).ViewOrder = 12
+  Test_Fields.Field(g_objTestPlanLabelDictionary.Item (TS_DESIGN_TIME)).ViewOrder = 14
+  Test_Fields.Field(g_objTestPlanLabelDictionary.Item (TS_REVIEWED_BY)).ViewOrder = 9
+  Test_Fields.Field(g_objTestPlanLabelDictionary.Item (TS_REVIEWED_ON_DATE)).ViewOrder = 11
+  Test_Fields.Field(g_objTestPlanLabelDictionary.Item (TS_COMMENTS_PENDING)).ViewOrder = 13
+  Test_Fields.Field(g_objTestPlanLabelDictionary.Item (TS_CREATED_FOR_PROJECT)).ViewOrder = 5
+  Test_Fields.Field(g_objTestPlanLabelDictionary.Item (TS_APPLICATION)).ViewOrder = 1
+  Test_Fields.Field(g_objTestPlanLabelDictionary.Item (TS_FUNCTIONAL_AREA)).ViewOrder = 3
+  Test_Fields.Field("TS_NAME").ViewOrder  =4
+  Test_Fields.Field("TS_CREATION_DATE").ViewOrder =10
+  Test_Fields.Field("TS_RESPONSIBLE").ViewOrder  =8
+  Test_Fields.Field("TS_ESTIMATE_DEVTIME").ViewOrder =15
+  Test_Fields.Field("TS_TEST_ID").ViewOrder = 2
+  Test_Fields.Field("TS_STATUS").ViewOrder = 6
+
+  On Error GoTo 0
+
+End Sub
+
+Function ExportTests()
+On Error Resume Next
+Dim testF
+Dim TestFilter
+Dim tst
+Dim desstepF
+Dim desstep
+Dim tList
+Dim dList
+Dim iRow
+Dim objWrkBk
+
+iRow = 2
+
+	'	Get the path for the test that's been selected
+         strFolderPath = g_objSubject.Path
+         strYorN = MsgBox("You have chosen the following folder path to export - [" & strFolderPath & "]. Is this correct?",VbYesNo)
+         If strYorN <> "6" Then
+            Exit Function
+         Else
+         	'	Now choose where you'd like to store your file
+                 strPath = BrowseFolder("My Computer",True)
+                 If strPath = "" Then
+                    Exit Function
+                 Else
+                    Set objWshShell = CreateObject("WScript.Shell")
+                    objWshShell.Sleep 60
+                    Set objWshShell = Nothing
+                 End If
+         End If
+
+	'	Open Excel
+         Set objExcel = CreateObject("Excel.Application")
+         objExcel.Visible = False
+         objExcel.Application.DisplayAlerts = False
+
+	Set objWrkBk = objExcel.Workbooks.Add()
+	objWrkBk.SaveAs(strPath & "\QC_Test_Export.xlsx")
+         objWrkBk.Worksheets(1).Cells(1,1).Value = "Test Path"
+         objWrkBk.Worksheets(1).Cells(1,2).Value = "Test Case Folder"
+         objWrkBk.Worksheets(1).Cells(1,3).Value = "Test Case Name"
+         objWrkBk.Worksheets(1).Cells(1,4).Value = "Application"
+         objWrkBk.Worksheets(1).Cells(1,5).Value = "Functional Area"
+         objWrkBk.Worksheets(1).Cells(1,6).Value = "Created for Project"
+         objWrkBk.Worksheets(1).Cells(1,7).Value = "Description"
+         objWrkBk.Worksheets(1).Cells(1,8).Value = "Priority"
+         objWrkBk.Worksheets(1).Cells(1,9).Value = "Step Name"
+         objWrkBk.Worksheets(1).Cells(1,10).Value = "Step Description"
+         objWrkBk.Worksheets(1).Cells(1,11).Value = "Step Expected Result"
+
+	objWrkBk.Worksheets(1).Rows("1:1").Select
+         objWrkBk.Application.Selection.AutoFilter
+
+         '	Open the connection to QC
+    	Set tdc = TDConnection
+    	'	Connect to test factory
+    	Set testF = tdc.TestFactory
+         '	Get the list of tests
+    	Set tList = testF.NewList("")
+
+         '	Loop round list
+    	For Each tst In tList
+
+        		rc = tst.Field("TS_SUBJECT").Path
+        		If InStr(1, rc, strFolderPath) > 0 Then
+
+            		'   Get link to design steps
+            		Set desstepF = tst.DesignStepFactory
+            		Set dList = desstepF.NewList("")
+
+            		'   See if we've got any design steps
+            		If dList.Count = 0 Then
+                			'   Write out the test info
+                                 objWrkBk.Worksheets(1).Cells(iRow, 1).Value = rc
+                			objWrkBk.Worksheets(1).Cells(iRow, 2).Value = tst.Field("TS_SUBJECT")
+                			objWrkBk.Worksheets(1).Cells(iRow, 3).Value = tst.Name
+                			objWrkBk.Worksheets(1).Cells(iRow, 4).Value = tst.Field(GetFieldName("Application", "TEST"))
+                			objWrkBk.Worksheets(1).Cells(iRow, 5).Value = tst.Field(GetFieldName("Functional Area", "TEST"))
+                			objWrkBk.Worksheets(1).Cells(iRow, 6).Value = tst.Field(GetFieldName("Created for Project", "TEST"))
+                			objWrkBk.Worksheets(1).Cells(iRow, 8).Value = tst.Field(GetFieldName("Priority", "TEST"))
+                                 strDesc = ReworkComments(tst.Field("TS_DESCRIPTION"))
+                    		'   Split the comments if there's any vbLf characters
+                    		mysplit = Split(strDesc, "vbLf")
+                    		If UBound(mysplit) > 0 Then
+                        		   strDesc = ""
+                        		   For i = 0 To UBound(mysplit)
+                            	   	If mysplit(i) <> "" And mysplit(i) <> " " Then
+                                			If i = 0 Then
+                                    			strDesc = mysplit(i)
+                                			Else
+                                    	   		If strDesc <> "" Then
+                                        				strDesc = strDesc & vbLf & mysplit(i)
+                                    			Else
+                                        				strDesc = mysplit(i)
+                                    			End If
+                                			End If
+                            		End If
+                        		   Next
+                        		   objWrkBk.Worksheets(1).Cells(iRow, 7).Value = strDesc
+                    		Else
+                        	   	   objWrkBk.Worksheets(1).Cells(iRow, 7).Value = strDesc
+                    		End If
+                			iRow = iRow + 1
+            		Else
+
+                			For Each desstep In dList
+                    			On Error Resume Next
+                    			'   Write out the test info
+                                         objWrkBk.Worksheets(1).Cells(iRow, 1).Value = rc
+                    			objWrkBk.Worksheets(1).Cells(iRow, 2).Value = tst.Field("TS_SUBJECT")
+                    			objWrkBk.Worksheets(1).Cells(iRow, 3).Value = tst.Name
+                    			objWrkBk.Worksheets(1).Cells(iRow, 4).Value = tst.Field(GetFieldName("Application", "TEST"))
+                    			objWrkBk.Worksheets(1).Cells(iRow, 5).Value = tst.Field(GetFieldName("Functional Area", "TEST"))
+                    			objWrkBk.Worksheets(1).Cells(iRow, 6).Value = tst.Field(GetFieldName("Created for Project", "TEST"))
+                    			objWrkBk.Worksheets(1).Cells(iRow, 8).Value = tst.Field(GetFieldName("Priority", "TEST"))
+                    			strDesc = ReworkComments(tst.Field("TS_DESCRIPTION"))
+                    			'   Split the comments if there's any vbLf characters
+                    			mysplit = Split(strDesc, "vbLf")
+                    			If UBound(mysplit) > 0 Then
+                        				strDesc = ""
+                        				For i = 0 To UBound(mysplit)
+                            				If mysplit(i) <> "" And mysplit(i) <> " " Then
+                                					If i = 0 Then
+                                    					strDesc = mysplit(i)
+                                					Else
+                                    					If strDesc <> "" Then
+                                        						strDesc = strDesc & vbLf & mysplit(i)
+                                    					Else
+                                        						strDesc = mysplit(i)
+                                    					End If
+                                					End If
+                            				End If
+                        				Next
+                        				objWrkBk.Worksheets(1).Cells(iRow, 7).Value = strDesc
+                    			Else
+                        				objWrkBk.Worksheets(1).Cells(iRow, 7).Value = strDesc
+                    			End If
+                    			objWrkBk.Worksheets(1).Cells(iRow, 9).Value = desstep.StepName
+                    			strDesc = ReworkComments(desstep.StepDescription)
+                    			'   Split the comments if there's any vbLf characters
+                    			mysplit = Split(strDesc, "vbLf")
+                    			If UBound(mysplit) > 0 Then
+                        				strDesc = ""
+                        				For i = 0 To UBound(mysplit)
+                            				If mysplit(i) <> "" And mysplit(i) <> " " Then
+                                					If i = 0 Then
+                                    					strDesc = mysplit(i)
+                                					Else
+                                    					If strDesc <> "" Then
+                                        						strDesc = strDesc & vbLf & mysplit(i)
+                                    					Else
+                                        						strDesc = mysplit(i)
+                                    					End If
+                                					End If
+                            				End If
+                        				Next
+                        				objWrkBk.Worksheets(1).Cells(iRow, 10).Value = strDesc
+                    			Else
+                        				objWrkBk.Worksheets(1).Cells(iRow, 10).Value = strDesc
+                    			End If
+                    			strDesc = ReworkComments(desstep.StepExpectedResult)
+                    			'   Split the comments if there's any vbLf characters
+                    			mysplit = Split(strDesc, "vbLf")
+                    			If UBound(mysplit) > 0 Then
+                        				strDesc = ""
+                        				For i = 0 To UBound(mysplit)
+                            				If mysplit(i) <> "" And mysplit(i) <> " " Then
+                                					If i = 0 Then
+                                    					strDesc = mysplit(i)
+                                					Else
+                                    					If strDesc <> "" Then
+                                        						strDesc = strDesc & vbLf & mysplit(i)
+                                    					Else
+                                        						strDesc = mysplit(i)
+                                    					End If
+                                					End If
+                            				End If
+                        				Next
+                        				objWrkBk.Worksheets(1).Cells(iRow, 11).Value = strDesc
+                    			Else
+                        				objWrkBk.Worksheets(1).Cells(iRow, 11).Value = strDesc
+                    			End If
+
+                    		    iRow = iRow + 1
+                			Next
+            		End If
+        		End If
+    	Next
+         '	Do some formatting
+         objWrkBk.Worksheets(1).Cells.Select
+         objWrkBk.Worksheets(1).Cells.EntireColumn.AutoFit
+         objWrkBk.Application.ActiveWindow.Zoom = 75
+         objWrkBk.Worksheets(1).Cells(1,1).Activate
+         objWrkBk.SaveAs (strPath & "\QC_Test_Export.xlsx")
+         objWrkBk.Close
+         Set objWrkBk = Nothing
+         Set objExcel = Nothing
+    	Set testF = Nothing
+         Set tdc = Nothing
+         MsgBox "Your Test Export has completed and can be found in [" & strPath & "]",vbOKOnly
+    On Error GoTo 0
+End Function

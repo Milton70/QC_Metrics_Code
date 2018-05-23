@@ -1,0 +1,366 @@
+Private Const BIF_RETURNONLYFSDIRS As Long = &H1
+Private Const BIF_DONTGOBELOWDOMAIN As Long = &H2
+Private Const BIF_RETURNFSANCESTORS As Long = &H8
+Private Const BIF_BROWSEFORCOMPUTER As Long = &H1000
+Private Const BIF_BROWSEFORPRINTER As Long = &H2000
+Private Const BIF_BROWSEINCLUDEFILES As Long = &H4000
+Private Const MAX_PATH As Long = 260
+
+Type BrowseInfo
+    hOwner As Long
+    pidlRoot As Long
+    pszDisplayName As String
+    lpszINSTRUCTIONS As String
+    ulFlags As Long
+    lpfn As Long
+    lParam As Long
+    iImage As Long
+End Type
+
+Type SHFILEOPSTRUCT
+    hwnd As Long
+    wFunc As Long
+    pFrom As String
+    pTo As String
+    fFlags As Integer
+    fAnyOperationsAborted As Boolean
+    hNameMappings As Long
+    lpszProgressTitle As String
+End Type
+
+Declare Function SHGetPathFromIDListA Lib "shell32.dll" ( _
+    ByVal pidl As Long, _
+    ByVal pszBuffer As String) As Long
+
+Declare Function SHBrowseForFolderA Lib "shell32.dll" ( _
+    lpBrowseInfo As BrowseInfo) As Long
+
+Public Sub BuildCustomMenu()
+     
+    Dim ctrl As CommandBarControl
+     
+     'add a 'popup' control to the cell commandbar (menu)
+    Set ctrl = Application.CommandBars("Cell").Controls.Add _
+    (Type:=msoControlButton, Before:=1)
+    ctrl.Caption = "Create XML."
+    ctrl.OnAction = "CreateXML" 'the routine called by the control
+    
+End Sub
+Public Sub DeleteCustomMenu()
+     
+Dim ctrl As CommandBarControl
+On Error Resume Next
+     'go thru all the cell commandbar controls and delete our menu item
+    For Each ctrl In Application.CommandBars("Cell").Controls
+        If ctrl.Caption = "Create XML." Then
+            ctrl.Delete
+        End If
+        
+    Next
+On Error GoTo 0
+End Sub
+Function CreateXML()
+
+    Application.ScreenUpdating = False
+
+    '   First browse for where you want to store the file
+    strFilePath = BrowseFolder("Choose a location for your file...")
+    
+    '   Run it
+    If strFilePath <> "Cancel" Then
+        makeXml strFilePath
+    End If
+    Application.ScreenUpdating = True
+    
+End Function
+Function BrowseFolder(Optional Caption As String = "") As String
+
+Dim BrowseInfo As BrowseInfo
+Dim FolderName As String
+Dim ID As Long
+Dim Res As Long
+
+With BrowseInfo
+   .hOwner = 0
+   .pidlRoot = 0
+   .pszDisplayName = String$(MAX_PATH, vbNullChar)
+   .lpszINSTRUCTIONS = Caption
+   .ulFlags = BIF_RETURNONLYFSDIRS
+   .lpfn = 0
+End With
+
+FolderName = String$(MAX_PATH, vbNullChar)
+ID = SHBrowseForFolderA(BrowseInfo)
+If ID Then
+   Res = SHGetPathFromIDListA(ID, FolderName)
+   If Res Then
+       BrowseFolder = Left$(FolderName, InStr(FolderName, vbNullChar) - 1)
+   End If
+Else
+    BrowseFolder = "Cancel"
+End If
+
+End Function
+
+Public Function makeXml(ByVal strFilePath As String)
+Dim lastRow, lastCol As Integer
+Dim iRow, iCol As Integer
+Dim xDoc As New MSXML2.DOMDocument60
+Dim rc As String
+Dim strType As String
+Dim myArr()
+
+    '   Open File
+    xDoc.async = False
+    
+    Set rootNode = xDoc.createProcessingInstruction("xml", "version='1.0'")
+    xDoc.appendChild rootNode
+    Set rootNode = Nothing
+    
+    '=================================================================================================='
+
+    '   Get the header data into an array
+    mainheaderArr = GetDataArray("Main", 1)
+    
+    '   Create the root Node - feeNotification
+    strRootNode = mainheaderArr(0)
+    Set rootNode = xDoc.createElement(strRootNode)
+    xDoc.appendChild rootNode
+    
+    '   Add the headernode
+    strHeaderNode = mainheaderArr(1)
+    Set headerNode = xDoc.createElement(strHeaderNode)
+    
+    '   Get the header data into an array
+    headerDataArr = GetDataArray("Main", 2)
+    
+    '   Loop over the columns to add to the header node
+    For iEle = 2 To 4
+        Set colNode = xDoc.createElement(mainheaderArr(iEle))
+        colNode.Text = headerDataArr(iEle)
+        headerNode.appendChild colNode
+    Next
+    rootNode.appendChild headerNode
+    
+    '   Add remaining header values to root
+    For iEle = 5 To UBound(mainheaderArr)
+        Set colNode = xDoc.createElement(mainheaderArr(iEle))
+        colNode.Text = headerDataArr(iEle)
+        rootNode.appendChild colNode
+    Next
+    
+    '============================================= Member Fees ====================================================='
+       
+    '   Select the sheet
+    Worksheets("Member Fees").Select
+    ActiveCell.SpecialCells(xlLastCell).Select
+    
+    '   get the rows and columns
+    lastRow = ActiveCell.Row
+    lastCol = ActiveCell.Column
+    
+    '   Get the header data into an array
+    ulheaderArr = GetDataArray("Member Fees", 1)
+    
+    '   Loop round each col and row, adding the header as the element
+    For iRow = 2 To lastRow
+        '   Set the root node
+        Set rootNode = xDoc.SelectSingleNode(strRootNode)
+        
+        '   Get the column data into an array
+        ulArr = GetDataArray("Member Fees", iRow)
+        j = 0
+        Do
+            '   Select on header value
+            Select Case ulheaderArr(j)
+                Case "memberFees"
+                    Set memberNode = xDoc.createElement(ulheaderArr(j))
+                    rootNode.appendChild memberNode
+                Case "clearingMemberCode"
+                    Set thisNode = xDoc.createElement(ulheaderArr(j))
+                    '   If there's an = then create an attribute or just write data
+                    iPos = InStr(1, ulArr(j), "=")
+                    If iPos = 0 Then
+                        thisNode.Text = ulArr(j)
+                    Else
+                        strEle = Left(ulArr(j), iPos - 1)
+                        iNewPos = InStr(1, ulArr(j), ">")
+                        If iNewPos > 0 Then
+                            thisNode.setAttribute strEle, Mid(ulArr(j), iPos + 1, (iNewPos - iPos) - 1)
+                            thisNode.Text = Mid(ulArr(j), iNewPos + 1)
+                        Else
+                            thisNode.setAttribute strEle, Mid(ulArr(j), iPos + 1)
+                        End If
+                    End If
+                    memberNode.appendChild thisNode
+                Case "fee"
+                    Set feeNode = xDoc.createElement(ulheaderArr(j))
+                    memberNode.appendChild feeNode
+                Case "payerPartyReference", "receiverPartyReference", "valueDate"
+                    Set thisNode = xDoc.createElement(ulheaderArr(j))
+                    '   If there's an = then create an attribute or just write data
+                    iPos = InStr(1, ulArr(j), "=")
+                    If iPos = 0 Then
+                        thisNode.Text = ulArr(j)
+                    Else
+                        strEle = Left(ulArr(j), iPos - 1)
+                        iNewPos = InStr(1, ulArr(j), ">")
+                        If iNewPos > 0 Then
+                            thisNode.setAttribute strEle, Mid(ulArr(j), iPos + 1, (iNewPos - iPos) - 1)
+                            thisNode.Text = Mid(ulArr(j), iNewPos + 1)
+                        Else
+                            thisNode.setAttribute strEle, Mid(ulArr(j), iPos + 1)
+                        End If
+                    End If
+                    feeNode.appendChild thisNode
+                Case "paymentAmount"
+                    Set payamtNode = xDoc.createElement(ulheaderArr(j))
+                    feeNode.appendChild payamtNode
+                Case "currency", "amount"
+                    Set thisNode = xDoc.createElement(ulheaderArr(j))
+                    '   If there's an = then create an attribute or just write data
+                    iPos = InStr(1, ulArr(j), "=")
+                    If iPos = 0 Then
+                        thisNode.Text = ulArr(j)
+                    Else
+                        strEle = Left(ulArr(j), iPos - 1)
+                        iNewPos = InStr(1, ulArr(j), ">")
+                        If iNewPos > 0 Then
+                            thisNode.setAttribute strEle, Mid(ulArr(j), iPos + 1, (iNewPos - iPos) - 1)
+                            thisNode.Text = Mid(ulArr(j), iNewPos + 1)
+                        Else
+                            thisNode.setAttribute strEle, Mid(ulArr(j), iPos + 1)
+                        End If
+                    End If
+                    payamtNode.appendChild thisNode
+            End Select
+                
+            j = j + 1
+        Loop Until j > UBound(ulheaderArr)
+    Next
+    
+    '============================================= PartyIds ====================================================='
+    
+    '   Select the sheet
+    Worksheets("PartyIds").Select
+    ActiveCell.SpecialCells(xlLastCell).Select
+    
+    '   get the rows and columns
+    lastRow = ActiveCell.Row
+    lastCol = ActiveCell.Column
+    
+    '   Get the header data into an array
+    ulheaderArr = GetDataArray("PartyIds", 1)
+    
+    '   Loop round each col and row, adding the header as the element
+    For iRow = 2 To lastRow
+        '   Set the root node
+        Set rootNode = xDoc.SelectSingleNode(strRootNode)
+        '   Get the column data into an array
+        ulArr = GetDataArray("PartyIds", iRow)
+        For j = 0 To UBound(ulheaderArr)
+        
+            Select Case ulheaderArr(j)
+                Case "party"
+                    '   Create the element
+                    Set partyNode = xDoc.createElement(ulheaderArr(j))
+                    '   If there's an = then create an attribute or just write data
+                    iPos = InStr(1, ulArr(j), "=")
+                    If iPos = 0 Then
+                        partyNode.Text = ulArr(j)
+                    Else
+                        strEle = Left(ulArr(j), iPos - 1)
+                        iNewPos = InStr(1, ulArr(j), ">")
+                        If iNewPos > 0 Then
+                            partyNode.setAttribute strEle, Mid(ulArr(j), iPos + 1, (iNewPos - iPos) - 1)
+                            partyNode.Text = Mid(ulArr(j), iNewPos + 1)
+                        Else
+                            partyNode.setAttribute strEle, Mid(ulArr(j), iPos + 1)
+                        End If
+                    End If
+                    rootNode.appendChild partyNode
+                Case "partyId"
+                    Set idNode = xDoc.createElement(ulheaderArr(j))
+                    '   If there's an = then create an attribute or just write data
+                    iPos = InStr(1, ulArr(j), "=")
+                    If iPos = 0 Then
+                        idNode.Text = ulArr(j)
+                    Else
+                        strEle = Left(ulArr(j), iPos - 1)
+                        iNewPos = InStr(1, ulArr(j), ">")
+                        If iNewPos > 0 Then
+                            idNode.setAttribute strEle, Mid(ulArr(j), iPos + 1, (iNewPos - iPos) - 1)
+                            idNode.Text = Mid(ulArr(j), iNewPos + 1)
+                        Else
+                            idNode.setAttribute strEle, Mid(ulArr(j), iPos + 1)
+                        End If
+                    End If
+                    partyNode.appendChild idNode
+            End Select
+
+        Next
+    Next
+    
+    '============================================= Save ====================================================='
+    
+    '   Save the file
+    xDoc.Save (strFilePath & "\fee-Notification.xml")
+    Set xDoc = Nothing
+    
+    '============================================= Add in namespace stuff ====================================================='
+    
+    '   Select the sheet
+    Worksheets("Main").Select
+    ActiveCell.SpecialCells(xlLastCell).Select
+    
+    rc = ActiveSheet.Cells(2, 1).Text
+    
+    Dim fso As New FileSystemObject
+    
+    Set myfile = fso.OpenTextFile(strFilePath & "\fee-Notification.xml", ForReading)
+    strText = myfile.ReadAll
+    myfile.Close
+    
+    strText = Replace(strText, "<feeNotification>", "<feeNotification " & rc & ">")
+    
+    Set myfile = fso.OpenTextFile(strFilePath & "\fee-Notification.xml", ForWriting)
+    myfile.WriteLine strText
+    myfile.Close
+    
+End Function
+Public Function GetDataArray(ByVal strSheet As String, ByVal iRow As Integer, Optional iCol As Integer) As Variant
+Dim lastCol As Integer
+Dim lastRow As Integer
+Dim myArr()
+Dim i As Integer
+i = 0
+
+    '   Select the sheet
+    Worksheets(strSheet).Select
+    ActiveCell.SpecialCells(xlLastCell).Select
+    
+    '   get the columns and rows
+    lastCol = ActiveCell.Column
+    lastRow = ActiveCell.Row
+    
+    '   Are we getting the column data or the row data
+    If iCol = Empty Then
+        '   Loop round the columns putting the data into the array
+        For iCol = 1 To lastCol
+            ReDim Preserve myArr(i)
+            myArr(i) = ActiveSheet.Cells(iRow, iCol).Text
+            i = i + 1
+        Next
+    Else
+        '   Loop round the rows putting the data into the array
+        For j = iRow To lastRow
+            ReDim Preserve myArr(i)
+            myArr(i) = ActiveSheet.Cells(j, iCol).Text
+            i = i + 1
+        Next
+    End If
+    
+    '   Return the array
+    GetDataArray = myArr
+    
+End Function

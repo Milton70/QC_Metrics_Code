@@ -1,0 +1,444 @@
+Const CY_AVERAGE_TEST_SET_DURATION = "Average Test Set Duration"
+Const CY_LIFECYCLE_DAY = "Lifecycle Day"
+Const CY_OWNER = "Owner"
+Const CY_PROJECT = "Project"
+Const CY_SUB_PROJECT = "Sub Project"
+Const CY_TEST_PHASE = "Test Phase"
+Const CY_TEST_CYCLE = "Test Cycle"
+
+Const TC_AVERAGE_DURATION = "Average Duration"
+Const TC_NC_REASON = "Reason for Not Completing"
+
+Const TS_PRIORITY = "Priority"
+Const TS_ACTIVE = "Active"
+Const TS_DESIGN_TIME = "Design Time"
+Const TS_REVIEWED_BY = "Reviewed By"
+Const TS_REVIEWED_ON_DATE = "Reviewed On Date"
+Const TS_COMMENTS_PENDING = "Comments Pending"
+Const TS_CREATED_FOR_PROJECT = "Created for Project"
+Const TS_APPLICATION = "Application"
+Const TS_FUNCTIONAL_AREA = "Functional Area"
+
+Const BG_REOPEN_COUNT = "Re-open Count"
+Const BG_DUPLICATE_OF_DEFECT = "Duplicate of Defect"
+Const BG_RAISED_BY = "Raised By"
+Const BG_TEST_PHASE = "Test Phase"
+Const BG_ENVIRONMENT = "Environment"
+Const BG_REASON_FOR_REJECTING = "Reason for Rejecting"
+Const BG_ROOT_CAUSE = "Root Cause"
+Const BG_TESTED_ON_DATE = "Tested On Date"
+Const BG_TESTED_BY = "Tested By"
+Const BG_FIXED_ON_DATE = "Fixed On Date"
+Const BG_APPLICATION = "Application"
+Const BG_OWNER = "Owner"
+Const BG_REFERENCE = "3rd Party Reference ID"
+Const BG_FUNCTIONAL_AREA = "Functional Area"
+Const BG_SUB_PROJECT = "Sub Project"
+Const BG_CR_REF = "CR Reference No."
+Const BG_TEST_CASE_ID = "Test Case ID"
+Const BG_BUILD_DATE = "Build Release Date"
+Const BG_TESTED_IN_VERSION = "Tested In Version"
+Const BG_FAILED_BY = "Failed By"
+Const BG_FAILED_COUNT = "Failed Count"
+Const BG_FAILED_IN_VERSION = "Failed In Version"
+Const BG_FAILED_ON_DATE = "Failed On Date"
+Const BG_MUREX_BINARY = "Murex Binary Fix ID"
+Const BG_ESTIMATED_FIX_DATE = "Estimated Fix Date"
+Const BG_ESTIMATED_RESOLUTION = "Estimated Resolution"
+
+Const RQ_FUNCTIONAL_AREA = "Functional Area"
+Const RQ_APPLICATION = "Application"
+Const RQ_REVIEWED_BY = "Reviewed By"
+Const RQ_REVIEWED_DATE = "Reviewed Date"
+Const RQ_TEST_PHASE = "Test Phase"
+Const RQ_SUB_PROJECT = "Sub Project"
+Const RQ_EFFORT_ESTIMATE = "Effort Estimate"
+Const RQ_OWNER = "Owner"
+Const RQ_CC_STATUS = "Status"
+
+Public g_objSubject
+Public g_objFolder
+Public g_objRequirement
+Public g_objTestPlanLabelDictionary
+Public g_objTestNameDictionary
+Public g_objBugLabelDictionary
+Public g_objReqLabelDictionary
+
+Public intReqId
+Public Today
+Public objWrkBk
+Public g_SendToMurex
+
+g_SendToMurex = "False"
+
+rc = TDConnection.ServerTime
+Today = Trim(Left(rc,9))
+mySplit = Split(Today,"/")
+If Len(mySplit(0)) = 1 Then mySplit(0) = "0" & mySplit(0)
+Today = mySplit(1) & mySplit(0) & mySplit(2)
+
+Function ActionCanExecute(ActionName)
+  'Use ActiveModule and ActiveDialogName to get
+  'the current context.
+  Dim strTestName
+
+  Dim objRegExp
+  Dim objWshShell
+
+  Dim blnMatch
+  Dim blnCancel
+
+  On Error Resume Next
+
+  Select Case ActionName
+    Case "ExportRequirements"
+      ExportRequirements
+    Case "ExportTests"
+      ExportTests
+    Case "ExportTestsByTestSet"
+      ExportTestsByTestSet
+    Case "ActNewReqFolder"
+      ' Prevent a non-admin user from creating a folder under the Requirements folder
+      If Not User.IsInGroup("TDAdmin") And g_objRequirement.Path = "Requirements" Then
+        MsgBox "You cannot create a new folder under the Requirements folder!", vbExclamation, "Warning"
+        ActionCanExecute = False
+      End If
+    Case "act_req_paste_as_child"
+      ' Prevent a non-admin user from pasting a copied folder under the Requirements folder
+      If Not User.IsInGroup("TDAdmin") And g_objRequirement.Path = "Requirements" Then
+        MsgBox "You cannot paste a copied folder under the Requirements folder!", vbExclamation, "Warning"
+        ActionCanExecute = False
+      End If
+    Case "act_new_folder"
+      ' Prevent a non-admin user from creating a folder under the Subject folder
+      If Not User.IsInGroup("TDAdmin") And g_objSubject.Path = "Subject" Then
+        MsgBox "You cannot create a new folder under the Subject folder!", vbExclamation, "Warning"
+        ActionCanExecute = False
+      End If
+    Case "act_paste_branch"
+      ' Prevent a non-admin user from pasting a copied folder under the Subject folder
+      If Not User.IsInGroup("TDAdmin") And g_objSubject.Path = "Subject" Then
+        MsgBox "You cannot paste a copied folder under the Subject folder!", vbExclamation, "Warning"
+        ActionCanExecute = False
+      End If
+    Case "AddFolderAct"
+      ' Prevent a non-admin user from creating a folder under the Root folder
+      If Not User.IsInGroup("TDAdmin") And g_objFolder.Path = "Root" Then
+        MsgBox "You cannot create a new folder under the Root folder!", vbExclamation, "Warning"
+        ActionCanExecute = False
+      End If
+    Case "PasteInTreeAct"
+      ' Prevent a non-admin user from pasting a copied folder under the Root folder
+      If Not User.IsInGroup("TDAdmin") And g_objFolder.Path = "Root" Then
+        MsgBox "You cannot paste a copied folder under the Root folder!", vbExclamation, "Warning"
+        ActionCanExecute = False
+      End If
+    Case "act_pass_all"
+      ' Prevent any user from passing all test steps in a test instance during manual execution
+      MsgBox "You cannot select the option to pass all test steps during manual test execution!", vbExclamation, "Warning"
+      ActionCanExecute = False
+    Case "act_new_test"
+      ' Apply a naming convention if the test is not a template test.
+      If InStr(g_objSubject.Path, "Subject\00. Templates") = 0 Then
+        ' Cancel the default Create New Test action.
+        blnMatch = False
+        blnCancel = False
+        Do While blnMatch = False
+          strTestName = InputBox("Please enter a test name that matches the naming convention of AAA_BBB_0001[_Optional Textual Description], where: " & vbCrLf _
+            & vbCrLf _
+            & "AAA, 111, A11 is the application name" _
+            & vbCrLf _
+            & "BBB, 222, B22 is the functional area to which the test relates" _
+            & vbCrLf _
+            & "0001 is the sequential number of the test", "Enter Test Name")
+
+          If strTestName <> "" Then
+            ' Convert the test name to uppercase for consistency.
+            strTestName = UCase(strTestName)
+
+            If Test_IsUniqueName(strTestName) Then
+              Set objRegExp = New RegExp
+
+              With objRegExp
+                .Pattern = "^[A-Z0-9]{3}_[A-Z0-9]{3}_[0-9]{4}"
+                .IgnoreCase = True
+                .Global = True
+              End With
+
+              blnMatch = objRegExp.Test(Left(strTestName,12))
+
+              Set objRegExp = Nothing
+
+              If Not blnMatch Then
+                MsgBox "The test name does not match the required naming convention!", vbExclamation, "Warning"
+              Else
+                If Len(strTestName) > 12 And Mid(strTestName, 13, 1) <> "_" Then
+                  MsgBox "The character following the mandatory details of the test name must be an underscore!", vbExclamation, "Warning"
+                  blnMatch = False
+                ElseIf Len(strTestName) > 73 Then
+                  MsgBox "The optional description cannot be greater than 60 characters!", vbExclamation, "Warning"
+                  blnMatch = False
+                Else
+                  Set objWshShell = CreateObject("WScript.Shell")
+
+                  ' Bypass the Create New Test Dialog box.
+                  objWshShell.SendKeys strTestName
+                  objWshShell.SendKeys "{ENTER}"
+
+                  Set objWshShell = Nothing
+                End If
+              End If
+            Else
+              MsgBox "The test name specified is not unique to the project!", vbExclamation, "Warning"
+            End If
+          Else
+            blnCancel = True
+            ActionCanExecute = False
+            Exit Do
+          End If
+        Loop
+      End If
+    Case Else
+      ActionCanExecute = DefaultRes
+  End Select
+
+  On Error GoTo 0
+End Function
+
+Sub DialogBox(DialogBoxName, IsOpen)
+  'Use ActiveModule and ActiveDialogName to get
+  'the current context.
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Function DefaultRes
+  On Error Resume Next
+
+  DefaultRes = True
+  On Error GoTo 0
+End Function
+
+Function CanLogin(DomainName, ProjectName, UserName)
+  Dim objCustomization
+  Dim objCustomizationUsers
+  Dim objCustomizationUser
+
+  On Error Resume Next
+
+  If Not (User.UserName = "qcsync" Or User.UserName = "vobadm" Or User.UserName = "michael.bartram" Or User.UserName = "rebecca.williams") And _
+  User.IsInGroup("TDAdmin") Then
+    Set objCustomization = TDConnection.Customization
+    Set objCustomizationUsers = objCustomization.Users
+    Set objCustomizationUser = objCustomizationUsers.User(User.UserName)
+
+    ' Add the user to the Viewer group when the user is currently a member of only one group
+    If objCustomizationUser.GroupsList().Count = 1 Then
+      objCustomizationUser.AddToGroup("Viewer")
+    End If
+
+    'Remove the user from the TDAdmin group
+    objCustomizationUser.RemoveFromGroup("TDAdmin")
+    objCustomization.Commit
+
+    MsgBox "Your user account has been removed from the TDAdmin group!", vbExclamation, "Warning"
+
+    Set objCustomizationUser = Nothing
+    Set objCustomizationUsers = Nothing
+    Set objCustomization = Nothing
+
+    'Log the user account off
+    CanLogin = False
+  Else
+    Call Requirement_AssignLabels
+    Call Defects_AssignLabels
+    Call Test_GetTestNames
+    CanLogin = DefaultRes
+  End If
+
+  On Error GoTo 0
+End Function
+
+Function CanLogout
+  On Error Resume Next
+
+  g_objTestNameDictionary.RemoveAll
+  g_objBugLabelDictionary.RemoveAll
+
+  Set g_objTestNameDictionary = Nothing
+  Set g_objBugLabelDictionary = Nothing
+
+  CanLogout = DefaultRes
+  On Error GoTo 0
+End Function
+
+Sub EnterModule
+  'Use ActiveModule and ActiveDialogName to get
+  'the current context.
+  On Error Resume Next
+
+  Select Case ActiveModule
+    Case "Requirements"
+      Call Requirement_AssignLabels
+    Case "TestPlan"
+      Call Test_AssignLabels
+  End Select
+
+  On Error GoTo 0
+End Sub
+
+Sub ExitModule
+  'Use ActiveModule and ActiveDialogName to get
+  'the current context.
+  On Error Resume Next
+
+  Select Case ActiveModule
+    Case "Requirements"
+      g_objReqLabelDictionary.RemoveAll
+      Set g_objRequirement = Nothing
+      Set g_objReqLabelDictionary = Nothing
+    Case "TestPlan"
+      g_objTestPlanLabelDictionary.RemoveAll
+
+      Set g_objSubject = Nothing
+      Set g_objTestPlanLabelDictionary = Nothing
+    Case "TestLab"
+      Set g_objFolder = Nothing
+  End Select
+
+  On Error GoTo 0
+End Sub
+
+Function CanCustomize(DomainName, ProjectName, UserName)
+  On Error Resume Next
+
+  CanCustomize = DefaultRes
+  On Error GoTo 0
+End Function
+
+Sub Attachment_New(Attachment)
+  'Use ActiveModule and ActiveDialogName to get
+  'the current context.
+  On Error Resume Next
+
+  On Error GoTo 0
+End Sub
+
+Function Attachment_CanDelete(Attachment)
+  'Use ActiveModule and ActiveDialogName to get
+  'the current context.
+  On Error Resume Next
+
+  Attachment_CanDelete = DefaultRes
+  On Error GoTo 0
+End Function
+
+Function ReworkComments(ByVal strComments)
+Dim regEx, strTagLess
+
+    '   Private variable
+    strTagLess = strComments
+
+    '   See if we've got any <br> tags in the html
+    strTagLess = Replace(strTagLess, "<br>", "vbLf")
+
+    '   Set up Regular Expression Object
+    Set regEx = New RegExp
+    '   Ignore case
+    regEx.IgnoreCase = True
+    '   Make it global
+    regEx.Global = True
+
+    '   Set up the pattern
+    regEx.Pattern = "<[^>]*>"
+    '   Remove anything that has the pattern
+    strTagLess = regEx.Replace(strTagLess, "")
+
+    ' Clean up
+    Set regEx = Nothing
+
+    '   Replace the 40 character ____ string
+    strTagLess = Replace(strTagLess, "________________________________________", " ")
+
+    '   Find any &lt; and &gt; characters and remove all including strings between
+    iStart = InStr(1, strTagLess, "&lt;")
+    If iStart > 0 Then
+        iEnd = InStr(1, strTagLess, "&gt;")
+        If iEnd = 0 Then
+            strTagLess = Replace(strTagLess, "&lt;", "")
+        Else
+            If iStart < iEnd Then
+                strMiddleString = Mid(strTagLess, iStart + 4, iEnd - (iStart + 4))
+                strTagLess = Replace(strTagLess, "&lt;" & strMiddleString & "&gt;", "")
+                strTagLess = Replace(strTagLess, ",", "")
+            End If
+        End If
+    End If
+
+    '   Return the string
+    ReworkComments = strTagLess
+
+End Function
+
+Function BrowseFolder( myStartLocation, blnSimpleDialog )
+Const MY_COMPUTER   = &H11&
+Const WINDOW_HANDLE = 0 ' Must ALWAYS be 0
+
+Dim numOptions, objFolder, objFolderItem
+Dim objPath, objShell, strPath, strPrompt
+
+    ' Set the options for the dialog window
+    strPrompt = "Select a folder:"
+    If blnSimpleDialog = True Then
+        numOptions = 0      ' Simple dialog
+    Else
+        numOptions = &H10&  ' Additional text field to type folder path
+    End If
+
+    ' Create a Windows Shell object
+    Set objShell = CreateObject( "Shell.Application" )
+
+    ' If specified, convert "My Computer" to a valid
+    ' path for the Windows Shell's BrowseFolder method
+    If UCase( myStartLocation ) = "MY COMPUTER" Then
+        Set objFolder = objShell.Namespace( MY_COMPUTER )
+        Set objFolderItem = objFolder.Self
+        strPath = objFolderItem.Path
+    Else
+        strPath = myStartLocation
+    End If
+
+    Set objFolder = objShell.BrowseForFolder( WINDOW_HANDLE, strPrompt, _
+                                              numOptions, strPath )
+
+    ' Quit if no folder was selected
+    If objFolder Is Nothing Then
+        BrowseFolder = ""
+        Exit Function
+    End If
+
+    ' Retrieve the path of the selected folder
+    Set objFolderItem = objFolder.Self
+    objPath = objFolderItem.Path
+
+    ' Return the path of the selected folder
+    BrowseFolder = objPath
+End Function
+
+Function GetFieldName(strField, strTable)
+'This function searches an array of labels to return a field name
+Dim i
+
+    '   Set up the field list
+    Set fieldList = TDConnection.Fields(strTable)
+
+    'Loop through the array of field labels to find the one that matches the input field
+    For i = 1 To fieldList.Count
+        If fieldList.Item(i).Property.UserLabel = strField Then
+            GetFieldName = fieldList.Item(i).Name
+            Exit Function
+        End If
+    Next
+
+End Function
